@@ -6,7 +6,7 @@ AS $$
 		#imports seed and pseudo random
 		from random import seed
 		from random import random
-        # if no argument passed, set to random
+		# if no argument passed, set to random
 		if seedArg is none:
 			seedArg = random()
 		else:
