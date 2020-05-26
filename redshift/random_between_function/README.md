@@ -5,8 +5,9 @@ random_between: Written in SQL. Different seed each time it's invoked, even in t
   -min number
   -max number
 
-random_seed: Written in Python. Different seed only if you don't pass a seed, constant seed otherwise.
+random_seed: Written in Python. Specifying a seed will give a constant value, otherwise a random seed will be selected each invocation.
 3 arguments
   -min number
   -max number
   -seed (optional)
+NOTE: this function is overloaded--one version has three arguments and the other has two. If this is undesirable, the function with three arguments can be used by itself, but users will have to pass a literal NULL argument for the seed. 
