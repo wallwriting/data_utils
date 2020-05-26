@@ -1,4 +1,4 @@
-CREATE OR REPLACE function random_between(lowArg BIGINT, highArg BIGINT, seedArg BIGINT)
+CREATE OR REPLACE function random_seed(lowArg BIGINT, highArg BIGINT, seedArg BIGINT)
 RETURNS BIGINT
 volatile 
 AS $$
