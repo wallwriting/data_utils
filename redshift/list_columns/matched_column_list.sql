@@ -13,7 +13,7 @@ BEGIN
     
     
     /*sets up the column prefix if one was passed, ignores it if it wasn't*/
-    IF prefixVar IS NULL THEN dottedPrefixVar = '';
+    IF prefixVar = '' THEN dottedPrefixVar = '';
         ELSIF right(prefixVar, 1) = '.' THEN dottedPrefixVar = prefixVar;
         ELSE dottedPrefixVar = prefixVar || '.';
     END IF;
