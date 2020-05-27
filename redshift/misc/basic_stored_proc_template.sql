@@ -5,6 +5,7 @@ DECLARE
     /*your input variable*/ CHARACTER VARYING;
     /*your inout variable*/ BIGINT;
     /*your out variable*/ RECORD;
+    /*text variable*/ CHARACTER VARYING;
 BEGIN
     FOR /*your cursor*/ IN 
             /*your script here*/
@@ -27,9 +28,10 @@ SELECT * FROM /*something*/;
 EXECUTE
 'DELETE
 FROM
-	 ' || /*your input variable*/ || 
+	 ' || /*your inout variable*/ || 
 ' WHERE 
-	 ' || /*your inout variable*/ || ' = 1;'
+	/*This is for cases where you need text enclosed in quotes*/
+	 ' || /*your inoput variable*/ || ' = ' || quote_literal(/*text variable*/) || ';'
 ;
 
 END;
