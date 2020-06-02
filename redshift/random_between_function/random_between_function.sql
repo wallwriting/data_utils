@@ -3,7 +3,7 @@ CREATE OR REPLACE function random_between(low BIGINT ,high BIGINT)
 RETURNS BIGINT
 volatile
 AS $$
-   select cast(random() * $2 + $1 as bigint)
+   select cast(random() * ($2 - $1) + $1 as bigint)
 /*use this  to drop*/
 --drop function random_between(bigint, bigint)
 
