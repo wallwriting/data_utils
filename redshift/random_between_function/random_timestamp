@@ -1,0 +1,9 @@
+/*creates a random timestamp between two provided timestamps*/
+CREATE OR REPLACE function random_timestamp(low timestamp ,high timestamp) 
+RETURNS timestamp
+volatile
+AS $$
+   select random() * ($2 - $1) + $1
+$$ language sql
+
+;
