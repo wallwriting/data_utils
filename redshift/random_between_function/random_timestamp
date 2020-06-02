@@ -7,3 +7,16 @@ AS $$
 $$ language sql
 
 ;
+
+
+
+
+
+/*creates a random date between two provided dates*/
+CREATE OR REPLACE function random_date(low timestamp ,high timestamp) 
+RETURNS date
+volatile
+AS $$
+   select cast(random() * ($2 - $1) + $1 as date)
+$$ language sql
+;
