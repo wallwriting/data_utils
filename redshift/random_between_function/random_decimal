@@ -1,0 +1,10 @@
+/*creates a random decimal between two specified decimals*/
+CREATE OR REPLACE function random_decimal(low decimal ,high decimal) 
+RETURNS decimal
+volatile
+AS $$
+   select random() * ($2 - $1) + $1
+
+$$ language sql
+
+;
