@@ -1,5 +1,5 @@
-/*run in redshift console--some query tools can't understand the syntax*/
-CREATE OR REPLACE function random_between(low BIGINT ,high BIGINT) 
+/*creates random integer*/
+CREATE OR REPLACE function random_integer(low BIGINT ,high BIGINT) 
 RETURNS BIGINT
 volatile
 AS $$
@@ -16,6 +16,18 @@ AS $$
 --   --arg2
 --   (select count(*) FROM /*table2*/)
 --   )
+
+$$ language sql
+
+;
+
+
+/*creates a random decimal between two specified decimals*/
+CREATE OR REPLACE function random_decimal(low decimal ,high decimal) 
+RETURNS decimal
+volatile
+AS $$
+   select random() * ($2 - $1) + $1
 
 $$ language sql
 
