@@ -1,3 +1,4 @@
+/*takes inputted date and adds a random timestamp to it*/
 CREATE OR REPLACE function fn_dt_to_ts(dt1 IN date) 
 RETURNS timestamp
 volatile
