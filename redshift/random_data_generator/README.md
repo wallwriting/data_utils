@@ -3,7 +3,7 @@ Functions that return a randomly generated value based on values you pass as arg
 Collectively, these functions can be used to fill dummy data into tables for testing purposes.
 <br>
 <br>
-random_between: Written in SQL. Different seed each time it's invoked, even in the same query. Two versions, one for integer and one for decimal<br>
+random_digits: Written in SQL. Different seed each time it's invoked, even in the same query. Two versions, one for integer and one for decimal<br>
 2 arguments<br>
   -min number<br>
   -max number<br>
