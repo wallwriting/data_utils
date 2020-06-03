@@ -1,6 +1,6 @@
-A function to generate a random number between two numbers you pass as arguments
+Functions that return a randomly generated value based on values you pass as arguments.
 <br>
-Collectively, this functions can be used to fill dummy data into tables for testing purposes.
+Collectively, these functions can be used to fill dummy data into tables for testing purposes.
 <br>
 random_between: Written in SQL. Different seed each time it's invoked, even in the same query. Two versions, one for integer and one for decimal<br>
 2 arguments<br>
