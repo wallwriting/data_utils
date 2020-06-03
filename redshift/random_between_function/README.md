@@ -2,6 +2,7 @@ Functions that return a randomly generated value based on values you pass as arg
 <br>
 Collectively, these functions can be used to fill dummy data into tables for testing purposes.
 <br>
+<br>
 random_between: Written in SQL. Different seed each time it's invoked, even in the same query. Two versions, one for integer and one for decimal<br>
 2 arguments<br>
   -min number<br>
@@ -15,6 +16,8 @@ random_seed: Written in Python. Specifying a seed will give a constant value, ot
   -seed (optional)<br>
 NOTE: this function is overloaded--one version has three arguments and the other has two. If this is undesirable, the function with three arguments can be used by itself, but users will have to pass a literal NULL argument for the seed. 
 <br>
+<br>
 random_timestamp: Written in SQL. Returns a random date between the dates specified. Two versions, one for date and one for timestamp
+<br>
 <br>
 random_jibberish: Written in Python. Returns a random string of specified length.
