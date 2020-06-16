@@ -27,7 +27,7 @@ CREATE OR REPLACE function random_decimal(low decimal ,high decimal)
 RETURNS decimal
 volatile
 AS $$
-   select random() * ($2 - $1) + $1
+   select cast(random() * ($2 - $1) + $1 as decimal)
 
 $$ language sql
 
