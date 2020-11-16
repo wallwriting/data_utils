@@ -1,0 +1,37 @@
+/*creates random ssn that will not be a valid value according to rules in the year 2020*/
+CREATE OR REPLACE function demo.random_ssn()
+as
+(
+    (
+        WITH range1 as
+        (
+            select 
+            timestamp_micros(99999) as high,
+            timestamp_micros(1) as low
+        ),
+        numpart1 as
+        (
+            SELECT 
+                CAST(rand() * (UNIX_micros(high) - UNIX_micros(low)) + UNIX_micros(low) as int64) as num1
+            FROM
+                range1
+        )
+        select
+            CASE 
+                WHEN num1 <10 THEN '0000' || cast(num1 as string)
+                WHEN num1 <100 THEN '000' || cast(num1 as string)
+                WHEN num1 <1000 THEN '00' || cast(num1 as string)
+                WHEN num1 <10000 THEN '0' || cast(num1 as string)
+                ELSE cast(num1 as string)
+                END
+                ||
+                /*Having the last 4 digits as zeros will ensure the ssn will not be valid*/
+                '0000'
+        FROM
+            numpart1
+    )
+)
+;
+
+
+
