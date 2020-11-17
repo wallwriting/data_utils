@@ -3,6 +3,7 @@ CREATE OR REPLACE function demo.random_ssn()
 as
 (
     (
+        /**This is part of a dead end approach I started with. Keeping it here in case I need to reuse this for something else down the road
         WITH range1 as
         (
             select 
@@ -15,6 +16,12 @@ as
                 CAST(rand() * (UNIX_micros(high) - UNIX_micros(low)) + UNIX_micros(low) as int64) as num1
             FROM
                 range1
+        )
+        **/
+        WITH numpart1 as
+        (
+            SELECT 
+                CAST(rand() * (99999 - 1) + 1 as int64) as num1
         )
         select
             CASE 
