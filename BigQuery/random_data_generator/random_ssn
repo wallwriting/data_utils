@@ -18,27 +18,47 @@ as
                 range1
         )
         **/
-        WITH numpart1 as
+        WITH area1 as
         (
             SELECT 
-                CAST(rand() * (99999 - 1) + 1 as int64) as num1
+                CAST(rand() * (899 - 1) + 1 as int64) as num1
+        ),
+        group1 as
+        (
+            SELECT 
+                CAST(rand() * (99 - 1) + 1 as int64) as num2
+        ),
+        serial1 as
+        (
+            SELECT 
+                CAST(rand() * (9999 - 1) + 1 as int64) as num3
         )
         select
+            /*1st 3 digits: area number*/
             CASE 
-                WHEN num1 <10 THEN '0000' || cast(num1 as string)
-                WHEN num1 <100 THEN '000' || cast(num1 as string)
-                WHEN num1 <1000 THEN '00' || cast(num1 as string)
-                WHEN num1 <10000 THEN '0' || cast(num1 as string)
+                WHEN num1 = 666 THEN '667'
+                WHEN num1 <10 THEN '00' || cast(num1 as string)
+                WHEN num1 <100 THEN '0' || cast(num1 as string)
                 ELSE cast(num1 as string)
                 END
-                ||
+            ||
+            /*middle 2 digits: group number*/
+            CASE 
+                WHEN num2 <10 THEN '0' || cast(num2 as string)
+                ELSE cast(num2 as string)
+                END
+            ||
                 /*Having the last 4 digits as zeros will ensure the ssn will not be valid*/
                 '0000'
+                /*use this if you want numbers that more closely follow SSN rules*/
+--            CASE 
+--                WHEN num3 <10 THEN '000' || cast(num3 as string)
+--                WHEN num3 <100 THEN '00' || cast(num3 as string)
+--                WHEN num3 <1000 THEN '0' || cast(num3 as string)
+--                ELSE cast(num3 as string)
+--                END
         FROM
-            numpart1
+            area1, group1, serial1
     )
 )
 ;
-
-
-
