@@ -90,7 +90,11 @@ as
                 ELSE cast(num2 as string)
                 END
             ||
-            cast(num3a as string)
+            CASE 
+                WHEN num2 <10 THEN '00' || cast(num2 as string)
+                WHEN num2 <100 THEN '0' || cast(num2 as string)
+                ELSE cast(num3a as string)
+                END
             ||
             CASE
                 /*Pisa--shorter number*/
