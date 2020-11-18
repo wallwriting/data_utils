@@ -1,5 +1,5 @@
 /*creates a random first name from a list, rather than just random strings*/
-CREATE OR REPLACE FUNCTION test.first_name_generator()
+CREATE OR REPLACE FUNCTION demo.first_name_generator()
 AS
 (
     (
