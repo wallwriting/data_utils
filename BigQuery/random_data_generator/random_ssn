@@ -3,36 +3,6 @@ CREATE OR REPLACE function demo.random_ssn()
 as
 (
     (
-        /**This is part of a dead end approach I started with. Keeping it here in case I need to reuse this for something else down the road
-        WITH range1 as
-        (
-            select 
-            timestamp_micros(99999) as high,
-            timestamp_micros(1) as low
-        ),
-        numpart1 as
-        (
-            SELECT 
-                CAST(rand() * (UNIX_micros(high) - UNIX_micros(low)) + UNIX_micros(low) as int64) as num1
-            FROM
-                range1
-        )
-        **/
-        WITH area1 as
-        (
-            SELECT 
-                CAST(rand() * (899 - 1) + 1 as int64) as num1
-        ),
-        group1 as
-        (
-            SELECT 
-                CAST(rand() * (99 - 1) + 1 as int64) as num2
-        ),
-        serial1 as
-        (
-            SELECT 
-                CAST(rand() * (9999 - 1) + 1 as int64) as num3
-        )
         select
             /*1st 3 digits: area number*/
             CASE 
@@ -58,7 +28,12 @@ as
 --                ELSE cast(num3 as string)
 --                END
         FROM
-            area1, group1, serial1
+            (
+                SELECT 
+                    CAST(rand() * (899 - 1) + 1 as int64) as num1,
+                    CAST(rand() * (99 - 1) + 1 as int64) as num2,
+                    CAST(rand() * (9999 - 1) + 1 as int64) as num3
+            )
     )
 )
 ;
