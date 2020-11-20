@@ -2,53 +2,14 @@
 In order to create numbers that more closely follow real credit card rules,
 generally for AI/ML purposes, change the first digit: 1 to 3, 7 to 4, 8 to 5, 9 to 6. 
 */
+
 CREATE OR REPLACE FUNCTION demo.credit_card_generator()
 as
+
 (
     (
-        WITH 
-        numpart1 as
-        (
-            SELECT 
-                CAST(rand() * (9999 - 1) + 1 as int64) as num1
-        ),
-        numpart2 as
-        (
-            SELECT 
-                CAST(rand() * (9999 - 1) + 1 as int64) as num2
-        ),
-        numpart3a as
-        (
-            SELECT 
-                CAST(rand() * (999 - 1) + 1 as int64) as num3a
-        ),
-        numpart3b as
-        (
-            SELECT 
-                CAST(rand() * (9 - 0) + 0 as int64) as num3b
-        ),
-        numpart3c as
-        (
-            SELECT 
-                CAST(rand() * (9 - 0) + 0 as int64) as num3c
-        ),
-        factor1 as
-        (
-            SELECT 
-                CAST(rand() * (100 - 1) + 1 as int64) as fct1
-        ),
-        digit2 as
-        (
-            SELECT
-                /*Breakfast Club*/
-                CAST(CAST(rand() * (3 - 1) + 1 as int64) as string) as club,
-                /*Siberian Express*/
-                CAST(CAST(rand() * (2 - 1) + 1 as int64) as string) as exprs,
-                /*Everything else*/
-                CAST(CAST(rand() * (9 - 0) + 0 as int64) as string) as misc
-        )
-
         SELECT
+            /*first digit represents the card company*/
             CASE
                 /*Breakfast Club*/
                 WHEN fct1 BETWEEN 1 AND 3 THEN '1'
@@ -62,6 +23,7 @@ as
                 ELSE '8' 
                 END
             ||
+            /*second digit depends on the type of card from the first digit*/
             CASE
                 /*Breakfast Club*/
                 WHEN fct1 BETWEEN 1 AND 3 THEN REPLACE(
@@ -97,12 +59,15 @@ as
                 END
             ||
             CASE
+                /*the length of the number can be anywhere from 13 = 16 depending on the company
+                One company can have either 13, hence the next section, or 16*/
                 /*Pisa--shorter number*/
                 WHEN fct1 BETWEEN 41 AND 50 THEN ''
                 ELSE CAST(num3b as string)
                 END
             ||
             CASE
+                /*the first three are the only ones that are less than 16 digits*/
                 /*Pisa--shorter number*/
                 WHEN fct1 BETWEEN 41 AND 50 THEN ''
                 /*Breakfast Club*/
@@ -112,6 +77,27 @@ as
                 ELSE CAST(num3c as string) 
                 END
         FROM
-            numpart1, numpart2, numpart3a, numpart3b, numpart3c, factor1, digit2
+            /*Dones as a nested query with each rand() function listed as separate columns,
+            this is the only way I could find to get the function to reseed the random value
+            for each record created in a query that uses the function to generate multiple rows*/
+            (
+                SELECT
+                    CAST(rand() * (9999 - 1) + 1 as int64) as num1,
+                    CAST(rand() * (9999 - 1) + 1 as int64) as num2,
+                    CAST(rand() * (999 - 1) + 1 as int64) as num3a,
+                    CAST(rand() * (9 - 0) + 0 as int64) as num3b,
+                    CAST(rand() * (9 - 0) + 0 as int64) as num3c,
+                    CAST(rand() * (100 - 1) + 1 as int64) as fct1,
+                    /*these are cast to string to make it easier to do the string function in the outside query's case statement*/
+                    /*Breakfast Club*/
+                    CAST(CAST(rand() * (3 - 1) + 1 as int64) as string) as club,
+                    /*Siberian Express*/
+                    CAST(CAST(rand() * (2 - 1) + 1 as int64) as string) as exprs,
+                    /*Everything else*/
+                    CAST(CAST(rand() * (9 - 0) + 0 as int64) as string) as misc
+            )
+
     )
 )
+
+
