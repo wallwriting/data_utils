@@ -16,7 +16,7 @@ DECLARE multVar INT64 DEFAULT 10;
 
 
 
-CREATE TABLE IF NOT EXISTS test.meta_series
+CREATE OR REPLACE TABLE test.meta_series
   (sequence_number INT64)
 PARTITION BY RANGE_BUCKET(sequence_number, GENERATE_ARRAY(100000000, 500000000000, 100000000))
 CLUSTER BY (sequence_number)
