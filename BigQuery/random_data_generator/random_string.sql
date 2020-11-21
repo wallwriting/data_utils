@@ -1,40 +1,25 @@
-/*creates a nonsensical string of characters
-limited to 400 max character length*/
-CREATE OR REPLACE FUNCTION demo.random_string(lenArg int64)
-as
+/*generates a random string based on an sha512 hash with non-alphanumeric characters removed.
+The argument is for how long you need the string to be. The function can only generate a string
+of approx 580 characters--the exact number differs because of the varying number of non-alphanumeric
+characters that have to be removed from the hash*/
+
+CREATE OR REPLACE FUNCTION demo.random_string(lenArg int64) as
 (
     (
-                SELECT
-                    /*keeps the length at the user-specified parameter*/
-                    LEFT
-                        /*replaces the brackets, spaces, double quotes from the array string*/
-                        (
-                        replace
-                            (
-                            replace
-                                (
-                                replace
-                                        (
-                                            format('%T', array_agg(val1)), '''", "''', ''
-                                        )
-                                , '''["''', ''
-                                )
-                            , '''"]''', ''
-                            )
-                        --, format('%T', array_agg(val1))
-                        --        (ANY_VALUE(val1) OVER (ORDER BY LENGTH(val1) ROWS BETWEEN 1 PRECEDING AND CURRENT ROW))
-                        , lenArg
-                        )
-                FROM
-                (
-                    SELECT val1
-                    FROM
-                    UNNEST(( ['GAR','PRE','ARP','PRO','OLE','ELL','COB','POC','BAR','OOP',
-                                'TEI','LIP','MOM','NAN','OTA','POT','QUE','RES','STI','TIB',
-                                    'UAB','VIC','WOX','XYE','YER','ZEE', 'APP', 'BOB', 'CRA', 'ERE',
-                                        'UBO', 'OLA', 'EPA', 'IPA', 'YRE', 'ABO', 'EPL', 'ILE', 'OAT', 'UBE',
-                                            ' ',' ',' ',' ' ])) as val1
-                    ORDER BY rand()
-                ) return1
+        SELECT 
+            LEFT(col1 || col2 || col3 || col4 || col5 || col6 || col7, lenArg)
+        FROM 
+            (
+            SELECT 
+                regexp_replace(TO_BASE64(sha512(CAST(RAND() AS STRING))), '\\W+', '') as col1,
+                regexp_replace(TO_BASE64(sha512(CAST(RAND() AS STRING))), '\\W+', '') as col2,
+                regexp_replace(TO_BASE64(sha512(CAST(RAND() AS STRING))), '\\W+', '') as col3,
+                regexp_replace(TO_BASE64(sha512(CAST(RAND() AS STRING))), '\\W+', '') as col4,
+                regexp_replace(TO_BASE64(sha512(CAST(RAND() AS STRING))), '\\W+', '') as col5,
+                regexp_replace(TO_BASE64(sha512(CAST(RAND() AS STRING))), '\\W+', '') as col6,
+                regexp_replace(TO_BASE64(sha512(CAST(RAND() AS STRING))), '\\W+', '') as col7
+            )
     )
 )
+;
+
