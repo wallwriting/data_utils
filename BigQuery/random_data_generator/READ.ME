@@ -1,0 +1,7 @@
+These are random data generators. This can be used for POCs, demos, or for customer query performance tuning--any situation where you can get a customer's DDL and row counts and populate tables with dummy data in your own project in order to create the POC, Demo, or Query results.
+
+There is a subdirectory with versions that will return an array of values, but those are still WIPs. 
+
+The functions in this directory are scalar. They can be used to generate mutliple records as the same time (either via a generate_array() function or using the meta_series table created in another section of this BigQuery Github. For most functions, when generating multiple rows, the randomizer will reseed with each row.
+
+Currently, there are two exceptions: the first name and last name generators will only seed once per query and therefore can't be used to create multiple rows at the same time. In order to do that, there's currently a WIP that will generate a table full of names that can be used in conjunction with a generate_array() function or the meta_series table.
