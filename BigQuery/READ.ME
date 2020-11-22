@@ -4,6 +4,18 @@ The subdirectories contain the following:
 
 random_data_generator uses functions, procedures, and/or scripts to generate randomized dummy data intended to be used for POCs, demos, and performance tests
 
-table_data_generator creates both dummy and real data based not on functions, but on tables. For example, the meta_series table creates a table with sequence numbers that go on for billions of records. This table can be used to create multiple values of dummy data at once in cases where a function to generate a series or an array would fail due to there being too many rows to create.
+table_data_generator creates both dummy and real data based not on functions, but on tables. For example, the meta_series table creates a table with sequence numbers that go on for billions of records. This table can be used to create multiple values of dummy data at once in cases where a function to generate a series or an array would fail due to there being too many rows to create. Use a query like this:
+
+SELECT
+    UDF1,
+    UDF2,
+    UDF3,
+    etc
+CROSS JOIN
+    demo.meta_series
+WHERE
+    demo.meta_series.sequence_number BETWEEEN 1 AND 10000000000
+
 
 misc is misc
+
