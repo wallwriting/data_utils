@@ -3,7 +3,7 @@ In order to create numbers that more closely follow real credit card rules,
 generally for AI/ML purposes, change the first digit: 1 to 3, 7 to 4, 8 to 5, 9 to 6. 
 */
 
-CREATE OR REPLACE FUNCTION demo.credit_card_generator()
+CREATE OR REPLACE FUNCTION demo.random_credit_card()
 as
 
 (
