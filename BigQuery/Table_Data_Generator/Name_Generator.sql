@@ -1,5 +1,4 @@
 /*Use to create a table of first names and last names*/
-
 CREATE OR REPLACE TABLE test.meta_namepart
 (
     name_id	INT64,
@@ -11,14 +10,14 @@ CLUSTER BY (name_id)
 ;
 
 /*this enters letters of the alphabet, used later for middle initials*/
-insert into test.meta_namepart
-select
-    (SELECT MAX(name_id) from test.meta_namepart) + row_number() over(),
+INSERT INTO test.meta_namepart
+SELECT
+    (SELECT IFNULL(MAX(name_id), 0) FROM test.meta_namepart) + ROW_NUMBER() OVER(),
     np.name_part,
-    'letter' as name_part_type
+    'letter' AS name_part_type
 FROM
     (
-        SELECT 'A' as name_part 
+        SELECT 'A' AS name_part 
         UNION ALL
         SELECT 'B' UNION ALL
         SELECT 'C' UNION ALL
@@ -55,11 +54,11 @@ https://wehavekids.com/baby-names/gender-neutral-names
 https://en.wikipedia.org/wiki/Unisex_name
 https://www.babycentre.co.uk/a1026121/unisex-baby-names
 */
-insert into test.meta_namepart
-select
-    (SELECT MAX(name_id) from test.meta_namepart) + row_number() over(),
+INSERT INTO test.meta_namepart
+SELECT
+    (SELECT IFNULL(MAX(name_id), 0) FROM test.meta_namepart) + ROW_NUMBER() OVER(),
     np.*,
-    'first name' as name_part_type
+    'first name' AS name_part_type
 FROM
     (
         SELECT 'Addison' UNION ALL
@@ -494,7 +493,7 @@ FROM
 
 INSERT INTO test.meta_namepart
 SELECT
-    (SELECT MAX(name_id) FROM test.meta_namepart) + row_number() OVER(),
+    (SELECT IFNULL(MAX(name_id), 0) FROM test.meta_namepart) + row_number() OVER(),
     np.*,
     'last name' AS name_part_type
 FROM
@@ -917,7 +916,7 @@ FROM
 
 INSERT INTO test.meta_namepart
 SELECT
-    (SELECT MAX(name_id) FROM test.meta_namepart) + row_number() OVER(),
+    (SELECT IFNULL(MAX(name_id), 0) FROM test.meta_namepart) + row_number() OVER(),
     np.*,
     'last name' AS name_part_type
 FROM
@@ -1317,7 +1316,7 @@ FROM
 
 INSERT INTO test.meta_namepart
 SELECT
-    (SELECT MAX(name_id) FROM test.meta_namepart) + row_number() OVER(),
+    (SELECT IFNULL(MAX(name_id), 0) FROM test.meta_namepart) + row_number() OVER(),
     np.*,
     'last name' AS name_part_type
 FROM
