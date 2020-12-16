@@ -152,70 +152,12 @@ EXECUTE IMMEDIATE
 ;
 
 
-EXECUTE IMMEDIATE
-    /*In cases where there are multiple transactions in the incoming batch
-    this will delete all but the latest record*/
-    'DELETE FROM ' 
-        || 'test.' || source_table ||
-    ' WHERE EXISTS ' ||
-'        (' ||
-'                SELECT 1 ' ||
-'                FROM ' ||
-                    /*This finds the max version number for each id*/
-'                    (' ||
-'                        SELECT ' ||
-'                            src.' || source_key || ',' || 
-'                            MAX(src.' || source_version || ') AS max_version_col ' ||
-'                        FROM ' ||
-                            'test.' || source_table || ' src' || 
-'                        GROUP BY ' ||
-                            source_key ||  
-'                    ) mx ' ||
-'                  WHERE '  ||
-                      source_table || '.' || source_key || ' = mx.' || source_key ||  
-                      /*deletes anything that is not the max version number*/
-'                      AND ' || source_table || '.' || source_version || ' != mx.max_version_col' ||
-'        );'
-
-;
-
-
-EXECUTE IMMEDIATE
-    /*inserts source data into target table, only inserting new rows*/
-'    INSERT INTO ' || 
-        'test.' || target_table ||
-'        (' || colArrayVar || ') '  ||
-'        SELECT '  ||
-            /*replace this with whatever you need to insert*/
-            colArrayPrefixVar || 
-'        FROM '  ||
-            /*source*/ 
-            'test.' || source_table || ' src' ||
-'        WHERE ' ||
-            /*only inserts inserts and updates*/
-            finishInsertVar ||  
-'    ;'
-
-;
-
-                                
-                                
---/*use this version of the insert for two-step process (ie no deletion from the source table*/
 --EXECUTE IMMEDIATE
---    /*inserts source data into target table, only inserting new rows*/
---'    INSERT INTO ' || 
---        'demo.' || target_table ||
---'        (' || colArrayVar || ') '  ||
---'        SELECT '  ||
---            /*replace this with whatever you need to insert*/
---            colArrayPrefixVar || 
---'        FROM '  ||
---            /*source*/ 
---            'demo.' || source_table || ' src' ||
---'        WHERE ' ||
---            /*only inserts inserts and updates*/
---            finishInsertVar ||  
---    ' AND EXISTS ' ||
+--    /*In cases where there are multiple transactions in the incoming batch
+--    this will delete all but the latest record*/
+--    'DELETE FROM ' 
+--        || 'test.' || source_table ||
+--    ' WHERE EXISTS ' ||
 --'        (' ||
 --'                SELECT 1 ' ||
 --'                FROM ' ||
@@ -225,15 +167,72 @@ EXECUTE IMMEDIATE
 --'                            src.' || source_key || ',' || 
 --'                            MAX(src.' || source_version || ') AS max_version_col ' ||
 --'                        FROM ' ||
---                            'demo.' || source_table || ' src' || 
+--                            'test.' || source_table || ' src' || 
 --'                        GROUP BY ' ||
 --                            source_key ||  
 --'                    ) mx ' ||
 --'                  WHERE '  ||
---                      'src' || '.' || source_key || ' = mx.' || source_key ||  
+--                      source_table || '.' || source_key || ' = mx.' || source_key ||  
 --                      /*deletes anything that is not the max version number*/
---'                      AND ' || 'src' || '.' || source_version || ' != mx.max_version_col' ||
+--'                      AND ' || source_table || '.' || source_version || ' != mx.max_version_col' ||
 --'        );'
+--;
+
+
+--EXECUTE IMMEDIATE
+--    /*inserts source data into target table, only inserting new rows*/
+--'    INSERT INTO ' || 
+--        'test.' || target_table ||
+--'        (' || colArrayVar || ') '  ||
+--'        SELECT '  ||
+--            /*replace this with whatever you need to insert*/
+--            colArrayPrefixVar || 
+--'        FROM '  ||
+--            /*source*/ 
+--            'test.' || source_table || ' src' ||
+--'        WHERE ' ||
+--            /*only inserts inserts and updates*/
+--            finishInsertVar ||  
+--'    ;'
+--;
+
+                                
+                                
+EXECUTE IMMEDIATE
+    /*inserts source data into target table, only inserting new rows*/
+'    INSERT INTO ' || 
+        'demo.' || target_table ||
+'        (' || colArrayVar || ') '  ||
+'        SELECT '  ||
+            /*replace this with whatever you need to insert*/
+            colArrayPrefixVar || 
+'        FROM '  ||
+            /*source*/ 
+            'demo.' || source_table || ' src' ||
+'        WHERE ' ||
+            /*only inserts inserts and updates*/
+            finishInsertVar ||  
+         /*In cases where there are multiple transactions in the incoming batch
+         this will get only the latest record*/
+        ' AND EXISTS ' ||
+    '        (' ||
+    '                SELECT 1 ' ||
+    '                FROM ' ||
+                        /*This finds the max version number for each id*/
+    '                    (' ||
+    '                        SELECT ' ||
+    '                            src.' || source_key || ',' || 
+    '                            MAX(src.' || source_version || ') AS max_version_col ' ||
+    '                        FROM ' ||
+                                'demo.' || source_table || ' src' || 
+    '                        GROUP BY ' ||
+                                source_key ||  
+    '                    ) mx ' ||
+    '                  WHERE '  ||
+                          'src' || '.' || source_key || ' = mx.' || source_key ||  
+                          /*deletes anything that is not the max version number*/
+    '                      AND ' || 'src' || '.' || source_version || ' != mx.max_version_col' ||
+    '        );'
 
 ;
                                 
