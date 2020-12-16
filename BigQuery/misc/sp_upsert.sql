@@ -97,7 +97,7 @@ set colArrayPrefixVar =
                             FROM 
                                 test.INFORMATION_SCHEMA.COLUMNS
                             WHERE 
-                                table_name = 'tgt_test'
+                                table_name = target_table
                             ORDER BY
                                 1
                         ) tgt
@@ -110,7 +110,7 @@ set colArrayPrefixVar =
                             FROM 
                                 test.INFORMATION_SCHEMA.COLUMNS
                             WHERE 
-                                table_name = 'src_test'
+                                table_name = source_table
                             ORDER BY
                                 1
                         ) src
@@ -197,5 +197,45 @@ EXECUTE IMMEDIATE
 '    ;'
 
 ;
+
+                                
+                                
+--/*use this version of the insert for two-step process (ie no deletion from the source table*/
+--EXECUTE IMMEDIATE
+--    /*inserts source data into target table, only inserting new rows*/
+--'    INSERT INTO ' || 
+--        'demo.' || target_table ||
+--'        (' || colArrayVar || ') '  ||
+--'        SELECT '  ||
+--            /*replace this with whatever you need to insert*/
+--            colArrayPrefixVar || 
+--'        FROM '  ||
+--            /*source*/ 
+--            'demo.' || source_table || ' src' ||
+--'        WHERE ' ||
+--            /*only inserts inserts and updates*/
+--            finishInsertVar ||  
+--    ' AND EXISTS ' ||
+--'        (' ||
+--'                SELECT 1 ' ||
+--'                FROM ' ||
+--                    /*This finds the max version number for each id*/
+--'                    (' ||
+--'                        SELECT ' ||
+--'                            src.' || source_key || ',' || 
+--'                            MAX(src.' || source_version || ') AS max_version_col ' ||
+--'                        FROM ' ||
+--                            'demo.' || source_table || ' src' || 
+--'                        GROUP BY ' ||
+--                            source_key ||  
+--'                    ) mx ' ||
+--'                  WHERE '  ||
+--                      'src' || '.' || source_key || ' = mx.' || source_key ||  
+--                      /*deletes anything that is not the max version number*/
+--'                      AND ' || 'src' || '.' || source_version || ' != mx.max_version_col' ||
+--'        );'
+
+;
+                                
 
 END
