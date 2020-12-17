@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE demo.sp_upsert(target_table STRING, target_key STRING, target_version STRING, source_table STRING, source_key STRING, source_version STRING, source_dml_indicator STRING)
+CREATE OR REPLACE PROCEDURE demo.sp_upsert(target_table_var STRING, source_table_var STRING, key_field_var STRING, version_field_var STRING, dml_field_var STRING)
 BEGIN
 
 DECLARE
@@ -8,16 +8,16 @@ DECLARE
 DECLARE
     col_txt_var STRING;
 DECLARE
-    colArrayVar STRING;
+    col_array_var STRING;
 DECLARE
-    colArrayPrefixVar STRING;
+    col_array_prefix_var STRING;
 DECLARE
-    finishInsertVar STRING;
+    finish_insert_var STRING;
 
 /*creates two sets of column lists, one with a table prefix and one without, to be used later to 
 dynamically generate the column list in the INSERT statement*/
 
-set colArrayVar = 
+set col_array_var = 
 (
     SELECT 
         /*filters out the opening and closing brackets as well as the double quotes from the 
@@ -44,7 +44,7 @@ set colArrayVar =
                             FROM 
                                 demo.INFORMATION_SCHEMA.COLUMNS
                             WHERE 
-                                table_name = target_table
+                                table_name = target_table_var
                             ORDER BY
                                 1
                         ) tgt
@@ -57,7 +57,7 @@ set colArrayVar =
                             FROM 
                                 demo.INFORMATION_SCHEMA.COLUMNS
                             WHERE 
-                                table_name = source_table
+                                table_name = source_table_var
                             ORDER BY
                                 1
                         ) src
@@ -68,7 +68,7 @@ set colArrayVar =
 ;
 
 
-set colArrayPrefixVar = 
+set col_array_prefix_var = 
 (
     SELECT 
         /*filters out the opening and closing brackets as well as the double quotes from the 
@@ -95,7 +95,7 @@ set colArrayPrefixVar =
                             FROM 
                                 demo.INFORMATION_SCHEMA.COLUMNS
                             WHERE 
-                                table_name = target_table
+                                table_name = target_table_var
                             ORDER BY
                                 1
                         ) tgt
@@ -108,7 +108,7 @@ set colArrayPrefixVar =
                             FROM 
                                 demo.INFORMATION_SCHEMA.COLUMNS
                             WHERE 
-                                table_name = source_table
+                                table_name = source_table_var
                             ORDER BY
                                 1
                         ) src
@@ -127,9 +127,9 @@ SET update_var = """'U'""";
 
 /*for the end of the insert statement, this will create different lines based on
 whether the call passed a real dml indicator or a value of X*/
-IF UPPER(source_dml_indicator) = 'X' THEN SET finishInsertVar = '1=1'; 
-    ELSE SET finishInsertVar = 'src.' || source_dml_indicator || ' IN(' || insert_var || ', ' || update_var || ')';
---    else set finishInsertVar = '1=1';
+IF UPPER(dml_field_var) = 'X' THEN SET finish_insert_var = '1=1'; 
+    ELSE SET finish_insert_var = 'src.' || dml_field_var || ' IN(' || insert_var || ', ' || update_var || ')';
+--    else set finish_insert_var = '1=1';
 END IF;
 
 
@@ -138,14 +138,14 @@ END IF;
 EXECUTE IMMEDIATE
 /*deletes any existing target rows that will change in the batch*/
 'DELETE FROM ' 
-    || 'demo.' || target_table || 
-' WHERE ' || target_key || ' IN' ||
+    || 'demo.' || target_table_var || 
+' WHERE ' || key_field_var || ' IN' ||
     /*gets target table_key that have a version number lower than the source*/
 '    (' ||
 '        SELECT ' ||
-'            maxtgt.' || source_key ||
+'            maxtgt.' || key_field_var ||
 '        FROM ' ||
-            'demo.' || source_table || ' as maxtgt' || 
+            'demo.' || source_table_var || ' as maxtgt' || 
 '    );'
 ;
 
@@ -154,17 +154,17 @@ EXECUTE IMMEDIATE
 EXECUTE IMMEDIATE
     /*inserts source data into target table, only inserting new rows*/
 '    INSERT INTO ' || 
-        'demo.' || target_table ||
-'        (' || colArrayVar || ') '  ||
+        'demo.' || target_table_var ||
+'        (' || col_array_var || ') '  ||
 '        SELECT '  ||
             /*replace this with whatever you need to insert*/
-            colArrayPrefixVar || 
+            col_array_prefix_var || 
 '        FROM '  ||
             /*source*/ 
-            'demo.' || source_table || ' src' ||
+            'demo.' || source_table_var || ' src' ||
 '        WHERE ' ||
             /*only inserts inserts and updates*/
-            finishInsertVar ||  
+            finish_insert_var ||  
     ' AND EXISTS ' ||
 '        (' ||
 '                SELECT 1 ' ||
@@ -172,17 +172,17 @@ EXECUTE IMMEDIATE
                     /*This finds the max version number for each id*/
 '                    (' ||
 '                        SELECT ' ||
-'                            src.' || source_key || ',' || 
-'                            MAX(src.' || source_version || ') AS max_version_col ' ||
+'                            src.' || key_field_var || ',' || 
+'                            MAX(src.' || version_field_var || ') AS max_version_col ' ||
 '                        FROM ' ||
-                            'demo.' || source_table || ' src' || 
+                            'demo.' || source_table_var || ' src' || 
 '                        GROUP BY ' ||
-                            source_key ||  
+                            key_field_var ||  
 '                    ) mx ' ||
 '                  WHERE '  ||
-                      'src' || '.' || source_key || ' = mx.' || source_key ||  
+                      'src' || '.' || key_field_var || ' = mx.' || key_field_var ||  
                       /*deletes anything that is not the max version number*/
-'                      AND ' || 'src' || '.' || source_version || ' != mx.max_version_col' ||
+'                      AND ' || 'src' || '.' || version_field_var || ' != mx.max_version_col' ||
 '        );'
 
 ;
