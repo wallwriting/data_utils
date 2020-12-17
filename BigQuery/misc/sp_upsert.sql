@@ -1,6 +1,4 @@
-/*This handles merge cases where it's possible to get multiple database transactions against the same record in a single batch.
-Currently a work in progress as its performance is not great*/
-
+CREATE OR REPLACE PROCEDURE demo.sp_upsert(target_table STRING, target_key STRING, target_version STRING, source_table STRING, source_key STRING, source_version STRING, source_dml_indicator STRING)
 BEGIN
 
 DECLARE
@@ -44,7 +42,7 @@ set colArrayVar =
                                 CAST(column_name AS STRING) AS column_name,
                                 data_type
                             FROM 
-                                test.INFORMATION_SCHEMA.COLUMNS
+                                demo.INFORMATION_SCHEMA.COLUMNS
                             WHERE 
                                 table_name = target_table
                             ORDER BY
@@ -57,7 +55,7 @@ set colArrayVar =
                                 CAST(column_name AS STRING) AS column_name,
                                 data_type
                             FROM 
-                                test.INFORMATION_SCHEMA.COLUMNS
+                                demo.INFORMATION_SCHEMA.COLUMNS
                             WHERE 
                                 table_name = source_table
                             ORDER BY
@@ -95,7 +93,7 @@ set colArrayPrefixVar =
                                 CAST(column_name AS STRING) AS column_name,
                                 data_type
                             FROM 
-                                test.INFORMATION_SCHEMA.COLUMNS
+                                demo.INFORMATION_SCHEMA.COLUMNS
                             WHERE 
                                 table_name = target_table
                             ORDER BY
@@ -108,7 +106,7 @@ set colArrayPrefixVar =
                                 CAST(column_name AS STRING) AS column_name,
                                 data_type
                             FROM 
-                                test.INFORMATION_SCHEMA.COLUMNS
+                                demo.INFORMATION_SCHEMA.COLUMNS
                             WHERE 
                                 table_name = source_table
                             ORDER BY
@@ -140,64 +138,19 @@ END IF;
 EXECUTE IMMEDIATE
 /*deletes any existing target rows that will change in the batch*/
 'DELETE FROM ' 
-    || 'test.' || target_table || 
+    || 'demo.' || target_table || 
 ' WHERE ' || target_key || ' IN' ||
     /*gets target table_key that have a version number lower than the source*/
 '    (' ||
 '        SELECT ' ||
 '            maxtgt.' || source_key ||
 '        FROM ' ||
-            'test.' || source_table || ' as maxtgt' || 
+            'demo.' || source_table || ' as maxtgt' || 
 '    );'
 ;
 
 
---EXECUTE IMMEDIATE
---    /*In cases where there are multiple transactions in the incoming batch
---    this will delete all but the latest record*/
---    'DELETE FROM ' 
---        || 'test.' || source_table ||
---    ' WHERE EXISTS ' ||
---'        (' ||
---'                SELECT 1 ' ||
---'                FROM ' ||
---                    /*This finds the max version number for each id*/
---'                    (' ||
---'                        SELECT ' ||
---'                            src.' || source_key || ',' || 
---'                            MAX(src.' || source_version || ') AS max_version_col ' ||
---'                        FROM ' ||
---                            'test.' || source_table || ' src' || 
---'                        GROUP BY ' ||
---                            source_key ||  
---'                    ) mx ' ||
---'                  WHERE '  ||
---                      source_table || '.' || source_key || ' = mx.' || source_key ||  
---                      /*deletes anything that is not the max version number*/
---'                      AND ' || source_table || '.' || source_version || ' != mx.max_version_col' ||
---'        );'
---;
 
-
---EXECUTE IMMEDIATE
---    /*inserts source data into target table, only inserting new rows*/
---'    INSERT INTO ' || 
---        'test.' || target_table ||
---'        (' || colArrayVar || ') '  ||
---'        SELECT '  ||
---            /*replace this with whatever you need to insert*/
---            colArrayPrefixVar || 
---'        FROM '  ||
---            /*source*/ 
---            'test.' || source_table || ' src' ||
---'        WHERE ' ||
---            /*only inserts inserts and updates*/
---            finishInsertVar ||  
---'    ;'
---;
-
-                                
-                                
 EXECUTE IMMEDIATE
     /*inserts source data into target table, only inserting new rows*/
 '    INSERT INTO ' || 
@@ -212,29 +165,26 @@ EXECUTE IMMEDIATE
 '        WHERE ' ||
             /*only inserts inserts and updates*/
             finishInsertVar ||  
-         /*In cases where there are multiple transactions in the incoming batch
-         this will get only the latest record*/
-        ' AND EXISTS ' ||
-    '        (' ||
-    '                SELECT 1 ' ||
-    '                FROM ' ||
-                        /*This finds the max version number for each id*/
-    '                    (' ||
-    '                        SELECT ' ||
-    '                            src.' || source_key || ',' || 
-    '                            MAX(src.' || source_version || ') AS max_version_col ' ||
-    '                        FROM ' ||
-                                'demo.' || source_table || ' src' || 
-    '                        GROUP BY ' ||
-                                source_key ||  
-    '                    ) mx ' ||
-    '                  WHERE '  ||
-                          'src' || '.' || source_key || ' = mx.' || source_key ||  
-                          /*deletes anything that is not the max version number*/
-    '                      AND ' || 'src' || '.' || source_version || ' != mx.max_version_col' ||
-    '        );'
+    ' AND EXISTS ' ||
+'        (' ||
+'                SELECT 1 ' ||
+'                FROM ' ||
+                    /*This finds the max version number for each id*/
+'                    (' ||
+'                        SELECT ' ||
+'                            src.' || source_key || ',' || 
+'                            MAX(src.' || source_version || ') AS max_version_col ' ||
+'                        FROM ' ||
+                            'demo.' || source_table || ' src' || 
+'                        GROUP BY ' ||
+                            source_key ||  
+'                    ) mx ' ||
+'                  WHERE '  ||
+                      'src' || '.' || source_key || ' = mx.' || source_key ||  
+                      /*deletes anything that is not the max version number*/
+'                      AND ' || 'src' || '.' || source_version || ' != mx.max_version_col' ||
+'        );'
 
 ;
-                                
 
-END
+END;
