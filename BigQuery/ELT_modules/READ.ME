@@ -1,0 +1,10 @@
+This folder contains ELT modules to run in BigQuery. Each module takes data from a specified table, performas its task, and outputs the results into another table. Users only need to specify the input project/dataset/table and output project/dataset/table as well as any join fields. No information about the schema is necessary. Each module is entirely self-contained (no additional libraries are needed, and no outside procs/functions are called), can be run in any combination, and in any order.
+
+Modules:
+- Decolumnizer: removes any fields that have only null values
+
+- Destruct: identifies any STRUCT datatypes and creates a separate table for each, as well as a root table with the remaining, non-struct fields. Each table includes a join key to be able to join the tables together. For the time being, the join key must already exist in the source table (ie it doesn't create its own)
+
+- Disarray: Similar to Destruct except with arrays
+
+- Upsert: Handles complex scenarios not easily handled by the built-in merge function including: batch processing where the source record has multiple updates between batch runs; many updates to the same record (it handles this by avoiding updates altogether, instead doing deletes/inserts); as well as deletes from a staging table that has only a subset of the data of the target table. 
