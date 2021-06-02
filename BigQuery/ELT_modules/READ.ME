@@ -1,3 +1,5 @@
+NOTE: procs can be copy/pasted. However, the dataset name in the 1st line of the CREATE OR REPLACE PROCEDURE statement needs to be changed from 'test' to your dataset name
+
 This folder contains ELT modules to run in BigQuery. Each module takes data from a specified table, performas its task, and outputs the results into another table. Users only need to specify the input project/dataset/table and output project/dataset/table as well as any join fields. No information about the schema is necessary. Each module is entirely self-contained (no additional libraries are needed, and no outside procs/functions are called), can be run in any combination, and in any order.
 
 Modules:
