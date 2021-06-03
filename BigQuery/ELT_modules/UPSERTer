@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE test.sp_upsert(source_project STRING, source_dataset STRING, source_table STRING, source_version STRING, source_dml_indicator STRING, join_key STRING, target_dataset STRING, target_table STRING, target_version STRING, update_var STRING, insert_var STRING)
+CREATE OR REPLACE PROCEDURE test.sp_upsert(source_project STRING, source_dataset STRING, source_table STRING, source_version STRING, source_dml_indicator STRING, join_key STRING, target_dataset STRING, target_table STRING, update_var STRING, insert_var STRING)
 BEGIN
 
     # DECLARE
