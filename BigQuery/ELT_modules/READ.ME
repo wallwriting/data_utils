@@ -4,18 +4,18 @@ This folder contains ELT modules to run in BigQuery. Each module takes data from
 
 Modules:
 deSTRUCT
-- Takes all STRUCT datatypes and creates a separate table for each
+- Flattens all STRUCT datatypes and creates a separate table for each
 - Creates a root table with the remaining non-STRUCT fields
 - User selects a key field to be able to JOIN all tables together
 
 disARRAY
-- Takes all ARRAY datatypes and creates a separate table for each
+- Flattens all ARRAY datatypes and creates a separate table for each
 - Creates a root table with the remaining non-STRUCT fields
 - User selects a key field to be able to JOIN all tables together
 
 deCOLUMNizer
 - Drops all NULL fields from a table
-- Also drops all ARRAY and STRUCT fields as they can’t be checked for NULLs
+- ARRAY and STRUCT fields are always created in the output table as they can’t be checked for NULLs without flattening them
 
 JOINer
 - Joins together two or more tables
