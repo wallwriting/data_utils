@@ -1,0 +1,169 @@
+CREATE OR REPLACE PROCEDURE test.sp_decolumnizer(varSrcPrj STRING, varSrcDs STRING, varSrcTbl STRING, varTgtDs STRING)
+BEGIN 
+    DECLARE varMaxColArray STRING;
+    DECLARE varGroomedColArray STRING;
+    DECLARE varTgtTbl STRING;
+    DECLARE varTgtTblCheck STRING;
+    DECLARE varDmlPrefix STRING;
+
+    /*Creates a list of columns that are not NULL--also filters out STRUCT and ARRAY fields*/
+    EXECUTE IMMEDIATE 
+    'CREATE OR REPLACE TEMP TABLE tmp_ifnull_column_list_array AS '
+    || ' SELECT '
+    || '   REPLACE '
+    || '        ( '
+    || '            REPLACE'
+    || '                ( '
+    || '                    REPLACE'
+    || '                        ( '
+    || """                            (format('%T', array_agg(column_name))) """
+    || """                          , '''["''' , 'IFNULL(CAST(MAX(' """
+    || '                        ) '
+    || """                  , '''"]''', ''') AS STRING), 'F')''' """
+    || '                ) '
+    || """          , '''", "''', ''') AS STRING), 'F'), IFNULL(CAST(MAX(''' """
+    || '        ) AS col_array '
+    || ' FROM '
+    || '    ( '
+    || '        SELECT '
+    || '            column_name '
+    || '        FROM '
+    ||            varSrcPrj || '.' || varSrcDs || '.INFORMATION_SCHEMA.COLUMNS '
+    || '       WHERE '
+    || """            table_name = '""" || varSrcTbl || """' """
+    || """            AND LEFT(data_type, 5) NOT IN('ARRAY', 'STRUC') """
+    || '        ORDER BY '
+    || '            ordinal_position '
+    || '    ) '
+    || ' ;'
+    ;
+    SET varMaxColArray = (SELECT * FROM tmp_ifnull_column_list_array);
+
+    /*Creates a list of column names and removes any that are in the null list from the previous step*/
+    EXECUTE IMMEDIATE 
+    'CREATE OR REPLACE TEMP TABLE tmp_groomed_column_list_array AS '
+    || ' SELECT '
+    || '    /*filters out the opening and closing brackets as well as the double quotes from the        '
+    || '    array string in order touse it as an explicity column list in the query later on*/          '
+    || '    REPLACE                                                                                         '
+    || '        (                                                                                           '
+    || '        REPLACE                                                                                         '
+    || '            (                                                                                           '
+    || '            REPLACE                                                                                     '
+    || '                (                                                                                       '
+    || '                    REPLACE                                                                             '
+    || '                        (                                                                               '
+    || '                            REPLACE                                                                     '
+    || '                                (                                                                       '
+    || """                                    (FORMAT('%T', ARRAY_AGG(col1)))                                 """
+    || """                                  , '[', ''                                                         """
+    || '                                )                                                                       '
+    || """                          , ']', ''                                                                 """
+    || '                        )                                                                               '
+    || """                  , '''"''', ''                                                                     """
+    || '                )                                                                                       '
+    || """            , 'xxxDELETETHISxxx, ', ''                                                              """
+    || '            )                                                                                           '
+    || """        , 'xxxDELETETHISxxx', ''                                                                    """
+    || '        ) AS col_array                                                                                   '
+    || ' FROM ' 
+    || '    ( '
+    || '        SELECT '
+    || """            (CASE WHEN col2 = 'F' THEN 'xxxDELETETHISxxx' """
+    || '                ELSE col1 ' 
+    || '                END) as col1 '
+    || '        FROM '
+    || '            ( '
+    || '                SELECT '
+    || '                    ROW_NUMBER() OVER() as key, ' 
+    || '                   * '
+    || '                FROM '
+    || '                UNNEST '
+    || '                    (( '
+    || '                    SELECT '
+    || '                        ARRAY_AGG(column_name) '
+    || '                    FROM '
+    || '                    ( '
+    || '                        SELECT '
+    || '                            column_name '
+    || '                        FROM '
+    ||                            varSrcPrj || '.' || varSrcDs || '.INFORMATION_SCHEMA.COLUMNS '
+    || '                       WHERE '
+    || """                            table_name = '""" || varSrcTbl || """' """
+--    || """                            AND LEFT(data_type, 5) NOT IN('ARRAY', 'STRUC') """
+    || '                        ORDER BY '
+    || '                            ordinal_position '
+    || '                    ) '
+    || '                    )) col1 '
+    || '            ) a '
+    || '        JOIN '
+    || '            ( '
+    || '                SELECT ' 
+    || '                    ROW_NUMBER() OVER() as key, ' 
+    || '                    * '
+    || '                FROM  '
+    || '                    UNNEST '
+    || '                        (( '
+    || '                            SELECT ' 
+    || '                                [ '
+    ||                                varMaxColArray
+    || '                                ] '
+    || '                            FROM ' || varSrcPrj || '.' || varSrcDs || '.' || varSrcTbl
+    || '                        )) col2 '
+    || '        ) b '
+    || '        ON a.key = b.key '
+    || '    ) '
+    || ' ; '
+    ;
+
+    SET varGroomedColArray = (SELECT CASE WHEN TRIM(IFNULL(col_array, '')) = '' THEN '1 AS no_non_null_columns' ELSE col_array END FROM tmp_groomed_column_list_array);
+
+
+    /*******************************************************************************************/
+    /****************************START Generate Target Table Name*******************************/
+    /*******************************************************************************************/    
+    /*this variable is for what should be the target table name*/
+    SET varTgtTbl = 'ELT_DECOLUMNIZER_' || varSrcTbl;
+
+    /*this variable is for searching a metadata view 
+    to see if the target table already exists*/
+
+    EXECUTE IMMEDIATE 
+    'CREATE OR REPLACE TEMP TABLE tmp_table_checker_value AS                                        '
+    || 'SELECT                                                                                      '
+    || '    table_id AS variable_value                                                              '
+    || 'FROM                                                                                        '
+    ||    varTgtDs || '.__TABLES__                                                                  '
+    || 'WHERE                                                                                       '
+    || '    table_id = ' || """'ELT_DECOLUMNIZER_""" || varSrcTbl || """'   """
+    || ';                                                                                           '
+    ;
+    /*Sets the variable to the row in the temp table*/
+    SET varTgtTblCheck = (SELECT variable_value FROM tmp_table_checker_value);
+
+
+    /*******************************************************************************************/
+    /******************************END Generate Target Table Name*******************************/
+    /*******************************************************************************************/   
+
+
+    /*******************************************************************************************/
+    /******************************START populate target table**********************************/
+    /*******************************************************************************************/   
+    /*generates the beginging of the CREATE TABLE statement*/ 
+    SET varDmlPrefix = 'CREATE OR REPLACE TABLE ' || varTgtDs || '.ELT_DECOLUMNIZER_' || varSrcTbl || ' AS ';
+    
+    /*populates the target table with everything in the source table*/
+    EXECUTE IMMEDIATE 
+    varDmlPrefix
+    || 'SELECT                                                  ' 
+    ||     varGroomedColArray
+    || ' FROM                                                   ' 
+    ||     varSrcPrj || '.' || varSrcDs || '.' || varSrcTbl
+    || ';                                                       '
+    ;
+    /*******************************************************************************************/
+    /********************************END populate target table**********************************/
+    /*******************************************************************************************/  
+
+END;
