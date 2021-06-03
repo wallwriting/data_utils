@@ -3,26 +3,65 @@ NOTE: procs can be copy/pasted. However, the dataset name in the 1st line of the
 This folder contains ELT modules to run in BigQuery. Each module takes data from a specified table, performas its task, and outputs the results into another table. Users only need to specify the input project/dataset/table and output project/dataset/table as well as any join fields. No information about the schema is necessary. Each module is entirely self-contained (no additional libraries are needed, and no outside procs/functions are called), can be run in any combination, and in any order.
 
 Modules:
+
 deSTRUCT
-- Flattens all STRUCT datatypes and creates a separate table for each
-- Creates a root table with the remaining non-STRUCT fields
-- User selects a key field to be able to JOIN all tables together
+  - Flattens all STRUCT datatypes and creates a separate table for each
+  - Creates a root table with the remaining non-STRUCT fields
+  - User selects a key field to be able to JOIN all tables together
+  Arguments:
+      varSrcPrj STRING: The name of the source project--must be put in quotes (eg 'MY-SOURCE-PROJECT')
+      varSrcDs STRING: The source dataset--must be put in quotes (eg 'MY-SOURCE-DATASET')
+      varSrcTbl STRING: The target dataset--must be put in quotes (eg 'MY-TARGET-DATASET')
+      varTgtDs STRING: The target dataset--must be put in quotes (eg 'MY-TARGET-DATASET')
+      varTblJoinKey STRING: The join column that will be included in all flattened tables created by the proc--must be put in quotes (eg 'my_join_column')
 
 disARRAY
-- Flattens all ARRAY datatypes and creates a separate table for each
-- Creates a root table with the remaining non-STRUCT fields
-- User selects a key field to be able to JOIN all tables together
+  - Flattens all ARRAY datatypes and creates a separate table for each
+  - Creates a root table with the remaining non-STRUCT fields
+  - User selects a key field to be able to JOIN all tables together
+  Arguments:
+      varSrcPrj STRING: The name of the source project--must be put in quotes (eg 'MY-SOURCE-PROJECT')
+      varSrcDs STRING: The source dataset--must be put in quotes (eg 'MY-SOURCE-DATASET')
+      varSrcTbl STRING: The target dataset--must be put in quotes (eg 'MY-TARGET-DATASET')
+      varTgtDs STRING: The target dataset--must be put in quotes (eg 'MY-TARGET-DATASET')
+      varTblJoinKey STRING: The join column that will be included in all flattened tables created by the proc--must be put in quotes (eg 'my_join_column')
 
 deCOLUMNizer
-- Drops all NULL fields from a table
-- ARRAY and STRUCT fields are always created in the output table as they can’t be checked for NULLs without flattening them
+  - Drops all NULL fields from a table
+  - ARRAY and STRUCT fields are always created in the output table as they can’t be checked for NULLs without flattening them
+    Arguments:
+      varSrcPrj STRING: The name of the source project--must be put in quotes (eg 'MY-SOURCE-PROJECT')
+      varSrcDs STRING: The source dataset--must be put in quotes (eg 'MY-SOURCE-DATASET')
+      varSrcTbl STRING: The target dataset--must be put in quotes (eg 'MY-TARGET-DATASET')
+      varTgtDs STRING: The target dataset--must be put in quotes (eg 'MY-TARGET-DATASET')
 
 JOINer
-- Joins together two or more tables
-- One “base” table is selected--for joining more than two tables, each table is joined back to the base table (ie Table A joins to Table B, Table A joins to Table C, Table A joins to Table D, etc.)
-- Can select INNER, LEFT, RIGHT, FULL OUTER, and CROSS joins
+  - Joins together two or more tables
+  - One “base” table is selected--for joining more than two tables, each table is joined back to the base table (ie Table A joins to Table B, Table A joins to Table C, Table A joins to Table D, etc.)
+  - Can select INNER, LEFT, RIGHT, FULL OUTER, and CROSS joins
+    Arguments:
+      varSourceProject STRING: The name of the source project--must be put in quotes (eg 'MY-SOURCE-PROJECT')
+      varSourceDataset STRING: The source dataset--must be put in quotes (eg 'MY-SOURCE-DATASET')
+      varTargetDataset STRING: The target dataset--must be put in quotes (eg 'MY-TARGET-DATASET') 
+      varMainTable STRING: The parent table that all other tables will join to--must be put in quotes (eg 'MY_MAIN_TABLE_NAME'
+      varJoinKey STRING: The join column of the parent table--must be put in quotes (eg 'my_join_column')
+      varJoinType STRING: The type of join--must be put in quotes--only one one type of join is allowed per call (eg 'INNER', 'LEFT', 'RIGHT, 'FULL OUTER', or 'CROSS')
+      varTableListArray ARRAY<STRING>: The list of child tables to be joined to the main table in brackets and quotes (eg ['table2', 'table3', 'table4'])
+      varRightJoinKeyArray ARRAY<STRING>: The list of child table join columns--must be in the same order as the table list array (eg ['join_key2', 'join_key3', join_key4'])
 
 UPSERTer
-- Takes two tables and performs an UPSERT for all fields whose names match from source to target
-- Can handle more complex scenarios than MERGE, including cases where the same record has multiple updates and handling deletes even in cases where the source table is only a subset of the target table
-- Updates are converted to deletes and inserts to handle cases where many fields are updated
+  - Takes two tables and performs an UPSERT for all fields whose names match from source to target
+  - Can handle more complex scenarios than MERGE, including cases where the same record has multiple updates and handling deletes even in cases where the source table is only a subset of the target table
+  - Updates are converted to deletes and inserts to handle cases where many fields are updated
+  - Proc will only consider column names that match in the source and target tables 
+    Arguments:
+      source_project STRING: The name of the source project--must be put in quotes (eg 'MY-SOURCE-PROJECT')
+      source_dataset STRING:  The source dataset--must be put in quotes (eg 'MY-SOURCE-DATASET')
+      source_table STRING: The source table--must be put in quuotes (eg 'MY_SOURCE_TABLE_NAME')
+      source_version STRING: The column used to version a record--this is often a timestamp or sequence number--column name must match between source and target and must be put in quotes (eg 'my_version_column')
+      source_dml_indicator STRING: The column used to indicate the type of dml operation to be undertaken--must be put in quotes (eg 'my_dml_indicator_column')
+      join_key STRING: The join column of both the source and target table table--must be the same name on both source and target and must be put in quotes (eg 'my_join_column')
+      target_dataset STRING: The target dataset--must be put in quotes (eg 'MY-TARGET-DATASET')
+      target_table STRING: The target table--must be put in quuotes (eg 'MY_TARGET_TABLE_NAME')
+      update_var STRING: The value in the source_dml_indicator column that represents an update--must be put in quotes (eg 'U')
+      insert_var STRING: The value in the source_dml_indicator column that represents an insert--must be put in quotes (eg 'I')
