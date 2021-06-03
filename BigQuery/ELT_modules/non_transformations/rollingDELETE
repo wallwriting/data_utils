@@ -1,0 +1,10 @@
+CREATE OR REPLACE PROCEDURE test.sp_rollingdelete(varDataset STRING, varTable STRING, varTimeColumn STRING, varNumberOfDays INT64)
+BEGIN
+    EXECUTE IMMEDIATE 
+    '    DELETE FROM ' ||
+            varDataset || '.' || varTable ||
+    '    WHERE ' ||
+            ' CAST(' || varTable || '.' || varTimeColumn || ' AS DATE) = CURRENT_DATE + ' || varNumberOfDays ||
+        ';'
+    ;
+END;
