@@ -1,0 +1,117 @@
+CREATE OR REPLACE PROCEDURE test.sp_joiner(varSourceProject STRING, varSourceDataset STRING, varTargetDataset STRING, varMainTable STRING, varJoinKey STRING, varJoinType STRING, varTableListArray ARRAY<STRING>, varRightJoinKeyArray ARRAY<STRING>)
+
+BEGIN
+    DECLARE curCounter INT64;
+    DECLARE varRange INT64;
+    DECLARE varJoinString STRING;
+    DECLARE varColumnListString STRING;
+    DECLARE varCurrentTable STRING;
+    DECLARE varAlias STRING;
+    DECLARE varQueryText STRING;
+    DECLARE varCurrentRightKey STRING;
+
+
+    /*Takes the array of tables and array of join keys and creates a temp table with each, as well as a row_id for sorting*/
+    CREATE TEMP TABLE tmp_table_array AS SELECT varTableListArray AS table_array;
+    CREATE TEMP TABLE tmp_right_key_array AS SELECT varRightJoinKeyArray AS key_array;
+
+    CREATE TEMP TABLE tmp_table_list AS
+    SELECT 
+        ROW_NUMBER() OVER() AS key, 
+        ta AS table_array
+    FROM 
+        tmp_table_array
+        , UNNEST(tmp_table_array.table_array) ta
+    ;
+    CREATE TEMP TABLE tmp_right_key_list AS
+    SELECT 
+        ROW_NUMBER() OVER() AS key, 
+        tk AS table_key_array
+    FROM 
+        tmp_right_key_array
+        , UNNEST(tmp_right_key_array.key_array) tk
+    ;
+
+
+    /*creates a string of the column names for the parent table that will eventually be used in the SELECT statement--
+    each column name is suffixed with a double underscore and the table name, this will prevent duplicate column names
+    in the target table*/
+    SET curCounter = 1;
+    SET varRange = (SELECT COUNT(*) FROM tmp_table_list);
+    SET varJoinString = '';
+    SET varColumnListString = '';
+    EXECUTE IMMEDIATE
+    'CREATE OR REPLACE TEMP TABLE tmp_column_list_table AS '
+    || ' SELECT '
+        /*filters out the opening and closing brackets as well as the double quotes from the 
+        array string in order touse it as an explicity column list in the query later on*/
+    || '    REPLACE '
+    || '        ( '
+    || '            REPLACE '
+    || '                ( '
+    || '                    REPLACE '
+    || '                        ( '
+    || """                            (format('%T', array_agg('a.' || column_name || ' AS ' || column_name || '__' || table_name))) """
+    || """                            , '[', '' """
+    || '                        ) '
+    || """                    , ']', '' """
+    || '                ) '
+    || """            , '''"''', '' """
+    || '        ) AS col_list'
+    || ' FROM '
+    ||    varSourceProject || '.' || varSourceDataset || '.INFORMATION_SCHEMA.COLUMNS '
+    || ' WHERE  '
+    || """    table_catalog = '""" || varSourceProject || """' """
+    || """    AND table_schema = '""" || varSourceDataset || """' """ 
+    || """    AND table_name = '""" || varMainTable || """'"""
+    || ';'
+    ;
+    SET varColumnListString = (SELECT col_list FROM tmp_column_list_table);
+
+
+    WHILE curCounter <= varRange DO
+        SET varCurrentTable = (SELECT table_array FROM tmp_table_list WHERE key = curCounter);
+        SET varCurrentRightKey = (SELECT table_key_array FROM tmp_right_key_list WHERE key = curCounter);
+        SET varAlias = 'tbl' || (SELECT CAST(curCounter AS STRING));
+
+        /*creates a string of column names for each child table that will eventually be used in the SELECT statement--
+        each column name is suffixed with a double underscore and the table name and a sequence number, 
+        this will prevent duplicate column names in the target table*/
+        EXECUTE IMMEDIATE
+        'CREATE OR REPLACE TEMP TABLE tmp_column_list_table AS '
+        || ' SELECT '
+            /*filters out the opening and closing brackets as well as the double quotes from the 
+            array string in order touse it as an explicity column list in the query later on*/
+        || '    REPLACE '
+        || '        ( '
+        || '            REPLACE '
+        || '                ( '
+        || '                    REPLACE '
+        || '                        ( '
+        || """                            (format('%T', array_agg('""" || varAlias || """' || '.' || column_name || ' AS ' || column_name || '__' || table_name || '_' || """ || curCounter || ' ))) '
+        || """                            , '[', '' """
+        || '                        ) '
+        || """                    , ']', '' """
+        || '                ) '
+        || """            , '''"''', '' """
+        || '        ) AS col_list'
+        || ' FROM '
+        ||    varSourceProject || '.' || varSourceDataset || '.INFORMATION_SCHEMA.COLUMNS '
+        || ' WHERE  '
+        || """    table_catalog = '""" || varSourceProject || """' """
+        || """    AND table_schema = '""" || varSourceDataset || """' """ 
+        || """    AND table_name = '""" || varCurrentTable || """'"""
+        || ';'
+        ;
+        SET varColumnListString = varColumnListString || ',' || (SELECT col_list FROM tmp_column_list_table);
+        SET varJoinString = varJoinString || ' ' ||varJoinType || ' JOIN ' || varSourceProject || '.' || varSourceDataset || '.' || varCurrentTable || ' AS ' || varAlias || ' ON a.' || varJoinKey || ' = ' || varAlias || '.' || varCurrentRightKey ;
+        SET curCounter = curCounter + 1;
+    END WHILE;
+
+    /*sets the variable to the script to create the target table, then executes the script*/
+    SET varQueryText = 'CREATE OR REPLACE TABLE ' || varTargetDataset || '.ELT_JOINER_' || varMainTable || ' AS SELECT ' || varColumnListString || ' FROM ' || varSourceProject || '.' || varSourceDataset || '.' || varMainTable || ' AS a ' || varJoinString || ' ;'
+    ;
+    EXECUTE IMMEDIATE 
+        varQueryText
+    ;
+END;
