@@ -4,7 +4,7 @@ BEGIN
     '    DELETE FROM ' ||
             varDataset || '.' || varTable ||
     '    WHERE ' ||
-            ' CAST(' || varTable || '.' || varTimeColumn || ' AS DATE) = CURRENT_DATE + ' || varNumberOfDays ||
+            ' CAST(' || varTable || '.' || varTimeColumn || ' AS DATE) = CURRENT_DATE - ' || varNumberOfDays ||
         ';'
     ;
 END;
