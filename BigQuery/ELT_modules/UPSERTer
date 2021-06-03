@@ -1,0 +1,186 @@
+CREATE OR REPLACE PROCEDURE test.sp_upsert(source_project STRING, source_dataset STRING, source_table STRING, source_version STRING, source_dml_indicator STRING, join_key STRING, target_dataset STRING, target_table STRING, target_version STRING, update_var STRING, insert_var STRING)
+BEGIN
+
+    # DECLARE
+    #     insert_var STRING;
+    # DECLARE
+    #     update_var STRING;
+    DECLARE
+        col_txt_var STRING;
+    DECLARE
+        colArrayVar STRING;
+    DECLARE
+        colArrayPrefixVar STRING;
+    DECLARE
+        finishInsertVar STRING;
+
+    /*creates two sets of column lists, one with a table prefix and one without, to be used later to 
+    dynamically generate the column list in the INSERT statement*/
+    CREATE OR REPLACE TEMP TABLE tmp_upsert_column_list_array (column_array STRING);
+
+    EXECUTE IMMEDIATE 
+    'INSERT INTO tmp_upsert_column_list_array '
+    || ' SELECT ' 
+    || '    /*filters out the opening and closing brackets as well as the double quotes from the  '
+    || '    array string in order touse it as an explicity column list in the query later on*/ '
+    || '    REPLACE '
+    || '        ( '
+    || '            REPLACE '
+    || '                ( '
+    || '                    REPLACE '
+    || '                        ( '
+    || """                            (format('%T', array_agg(tgt.column_name))) """
+    || """                            , '[', ''  """
+    || '                        ) '
+    || """                    , ']', '' """
+    || '                ) '
+    || """            , '''"''', '' """
+    || '        ) '
+    || '                FROM '
+    || '                    /*Gets the list of target columns from the INFORMATION_SCHEMA metadata table in order to compare it to the source columns*/ '
+    || '                    ( '
+    || '                        SELECT '
+    || '                            CAST(column_name AS STRING) AS column_name, '
+    || '                            data_type '
+    || '                        FROM  '
+    ||                            source_project || '.' || source_dataset || '.INFORMATION_SCHEMA.COLUMNS '
+    || '                        WHERE  '
+    || """                            table_name = '""" || target_table || """' """
+    || '                        ORDER BY '
+    || '                            1 '
+    || '                    ) tgt '
+    || '                JOIN '
+    || '                    /*Gets the list of source columns from the INFORMATION_SCHEMA metadata table in order to compare it to the target columns*/ '
+    || '                    ( '
+    || '                        SELECT '
+    || '                            CAST(column_name AS STRING) AS column_name,  '
+    || '                            data_type '
+    || '                        FROM  '
+    ||                            target_dataset || '.INFORMATION_SCHEMA.COLUMNS '
+    || '                        WHERE  '
+    || """                            table_name = '""" || source_table || """' """
+    || '                        ORDER BY '
+    || '                            1 '
+    || '                    ) src '
+    || '                    ON tgt.column_name = src.column_name '
+    || '                    /*this will filter out any columns where the names match but the datatypes do not*/ '
+    || '                    AND tgt.data_type = src.data_type '
+    || '; '
+    ;
+    SET colArrayVar = (SELECT column_array FROM tmp_upsert_column_list_array);
+
+    CREATE OR REPLACE TEMP TABLE tmp_upsert_prefix_column_list_array (column_array STRING);
+    EXECUTE IMMEDIATE 
+    'INSERT INTO tmp_upsert_prefix_column_list_array '
+    || ' SELECT ' 
+    || '    /*filters out the opening and closing brackets as well as the double quotes from the  '
+    || '    array string in order touse it as an explicity column list in the query later on*/ '
+    || '    REPLACE '
+    || '        ( '
+    || '            REPLACE '
+    || '                ( '
+    || '                    REPLACE '
+    || '                        ( '
+    || """                            (format('%T', ARRAY_AGG(CONCAT('src.' || tgt.column_name)))) """
+    || """                            , '[', ''  """
+    || '                        ) '
+    || """                    , ']', '' """
+    || '                ) '
+    || """            , '''"''', '' """
+    || '        ) '
+    || '                FROM '
+    || '                    /*Gets the list of target columns from the INFORMATION_SCHEMA metadata table in order to compare it to the source columns*/ '
+    || '                    ( '
+    || '                        SELECT '
+    || '                            CAST(column_name AS STRING) AS column_name, '
+    || '                            data_type '
+    || '                        FROM  '
+    ||                            source_project || '.' || source_dataset || '.INFORMATION_SCHEMA.COLUMNS '
+    || '                        WHERE  '
+    || """                            table_name = '""" || target_table || """' """
+    || '                        ORDER BY '
+    || '                            1 '
+    || '                    ) tgt '
+    || '                JOIN '
+    || '                    /*Gets the list of source columns from the INFORMATION_SCHEMA metadata table in order to compare it to the target columns*/ '
+    || '                    ( '
+    || '                        SELECT '
+    || '                            CAST(column_name AS STRING) AS column_name,  '
+    || '                            data_type '
+    || '                        FROM  '
+    ||                            target_dataset || '.INFORMATION_SCHEMA.COLUMNS '
+    || '                        WHERE  '
+    || """                            table_name = '""" || source_table || """' """
+    || '                        ORDER BY '
+    || '                            1 '
+    || '                    ) src '
+    || '                    ON tgt.column_name = src.column_name '
+    || '                    /*this will filter out any columns where the names match but the datatypes do not*/ '
+    || '                    AND tgt.data_type = src.data_type '
+    || '; '
+    ;
+
+    set colArrayPrefixVar = (SELECT column_array FROM tmp_upsert_prefix_column_list_array);
+    /*This ends the column list generating section*/
+
+
+    # /*hard codes the dml indiciator--this will eventually need to be flexible*/
+    # SET insert_var = """'I'""";
+    # SET update_var = """'U'""";
+
+    /*for the end of the insert statement, this will create different lines based on
+    whether the call passed a real dml indicator or a value of X*/
+    IF UPPER(source_dml_indicator) = 'X' THEN SET finishInsertVar = '1=1'; 
+        ELSE SET finishInsertVar = 'src.' || source_dml_indicator || """ IN('""" || insert_var || """', '""" || update_var || """')""";
+    END IF;
+
+
+
+    /*This starts the actual delete and insert*/
+    EXECUTE IMMEDIATE
+    /*deletes any existing target rows that will change in the batch*/
+    'DELETE FROM ' 
+        || target_dataset || '.' || target_table || 
+    ' WHERE ' || join_key || ' IN' ||
+        /*gets target table_key that have a version number lower than the source*/
+    '    (' ||
+    '        SELECT ' ||
+    '            maxtgt.' || join_key ||
+    '        FROM ' ||
+                source_project || '.' || source_dataset || '.' || source_table || ' as maxtgt' || 
+    '    );'
+    ;
+
+    EXECUTE IMMEDIATE
+        /*inserts source data into target table, only inserting new rows*/
+    '    INSERT INTO ' || 
+            target_dataset || '.' || target_table ||
+    '        (' || colArrayVar || ') '  ||
+    '        SELECT '  ||
+                /*replace this with whatever you need to insert*/
+                colArrayPrefixVar || 
+    '        FROM '  ||
+                /*source*/ 
+                source_project || '.' || source_dataset || '.' || source_table || ' src' ||
+    '        JOIN ' ||
+                /*This finds the max version number for each id*/
+    '            (' ||
+    '                SELECT ' ||
+    '                    srcmx.' || join_key || ',' || 
+    '                    MAX(srcmx.' || source_version || ') AS max_version_col ' ||
+    '                FROM ' ||
+                        'test.' || source_table || ' srcmx' || 
+    '                GROUP BY ' ||
+                        join_key ||  
+    '            ) mx ' ||
+    '            ON src.' || join_key || ' = mx.' || join_key ||
+                /*only gets records with the max version number*/
+    '            AND src. ' || source_version || ' = mx.max_version_col ' ||
+    '        WHERE ' ||
+                /*only inserts inserts and updates*/
+                finishInsertVar ||  
+    '    ;'
+
+    ;
+
+END;
