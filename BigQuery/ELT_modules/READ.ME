@@ -65,3 +65,25 @@ UPSERTer
       target_table STRING: The target table--must be put in quuotes (eg 'MY_TARGET_TABLE_NAME')
       update_var STRING: The value in the source_dml_indicator column that represents an update--must be put in quotes (eg 'U')
       insert_var STRING: The value in the source_dml_indicator column that represents an insert--must be put in quotes (eg 'I')
+
+COLUMNpicker
+  - Create a new table using a specified subset of columns from a source table
+  - New column names in the target table must also be specified
+  - Also creates a sequence number row id
+  Arguments:
+    varSourceProject STRING
+    varSourceDataset STRING
+    varSourceTable STRING
+    varTargetDataset STRING
+    varSelectColumnArray ARRAY<STRUCT<source_column_name STRING, target_column_name STRING>>): Must be sent as a key/value pair with the source column name and a target column name (eg [('source_col1', 'target_col1'), ('source_col2', 'target_col2'), ('source_col3', 'target_col3')]
+
+KEYmaster
+  - Creates a target table using all columns from a source table, and adds a hash key field
+  - User passes a set of fields--the values will be converted to string and concatenated together, then a farm fingerprint hash will be applied
+  - The same concatenated string value will always produce the same hash
+  Arguments:
+      varSourceProject STRING
+      varSourceDataset STRING
+      varSourceTable STRING
+      varTargetDataset STRING
+      varHashColumnArray ARRAY<STRING>: The list of columns you want to use for the hash key (eg ['col1', 'col2', 'col3']) 
