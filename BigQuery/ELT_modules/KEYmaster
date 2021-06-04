@@ -1,0 +1,86 @@
+CREATE OR REPLACE PROCEDURE test.sp_keymaster(varSourceProject STRING, varSourceDataset STRING, varSourceTable STRING, varTargetDataset STRING, varHashColumnArray ARRAY<STRING>)
+
+BEGIN
+    DECLARE varHashText STRING;
+    DECLARE curCounter INT64;
+    DECLARE varRange INT64;
+    DECLARE varTargetTableCheck STRING;
+    DECLARE varDmlPrefix STRING;
+    DECLARE varTargetTable STRING;
+
+
+    CREATE TEMP TABLE tmp_table_list AS
+    WITH HashColArray AS (SELECT varHashColumnArray)
+    SELECT 
+        ROW_NUMBER() OVER() AS row_key, 
+        ' IFNULL(CAST(' || col_name ||  """ AS STRING), '')""" as col_name
+    FROM 
+        HashColArray
+        , UNNEST(varHashColumnArray) col_name
+    ;
+
+    SET varRange = (SELECT COUNT(*) FROM tmp_table_list);
+
+    SET varHashText = 'SELECT FARM_FINGERPRINT(CONCAT(';
+
+    SET curCounter = 1;
+
+
+
+
+    /*******************************************************************************************/
+    /****************************START Generate Target Table Name*******************************/
+    /*******************************************************************************************/    
+    /*this variable is for what should be the target table name*/
+    SET varTargetTable = 'ELT_KEYMASTER_' || varSourceTable;
+
+    /*this variable is for searching a metadata view to see if the target table already exists*/
+    CREATE OR REPLACE TEMP TABLE tmp_table_checker_value (variable_value   STRING);
+
+    EXECUTE IMMEDIATE 
+    ' CREATE OR REPLACE TEMP TABLE tmp_table_checker_value AS '
+    || 'SELECT                                                                                      '
+    || '    table_id AS variable_value                                                                               '
+    || 'FROM                                                                                        '
+    ||    varTargetDataset || '.__TABLES__                                                                  '
+    || 'WHERE                                                                                       '
+    || '    table_id = ' || """'ELT_KEYMASTER_""" || varSourceTable || """'   """
+    || ';                                                                                           '
+    ;
+    /*Sets the variable to the row in the temp table*/
+    SET varTargetTableCheck = (SELECT variable_value FROM tmp_table_checker_value);
+
+    /*******************************************************************************************/
+    /******************************END Generate Target Table Name*******************************/
+    /*******************************************************************************************/   
+
+
+
+
+    /*******************************************************************************************/
+    /******************************START populate target table**********************************/
+    /*******************************************************************************************/   
+    /*Checks intended table name against the metadata table name to see
+    if the table already exists--generates either a CREATE TABLE statement
+    or an INSERT INTO statement depending on whether the target already eixsts*/ 
+    IF varTargetTableCheck = varTargetTable THEN SET varDmlPrefix = 'INSERT INTO ' || varTargetDataset || '.ELT_KEYMASTER_' || varSourceTable || ' ';
+        ELSE SET varDmlPrefix = 'CREATE OR REPLACE TABLE ' || varTargetDataset || '.ELT_KEYMASTER_' || varSourceTable || ' AS ';
+    END IF;
+
+    WHILE curCounter <= varRange DO
+        IF curCounter < varRange 
+            THEN SET varHashText = varHashText || (SELECT col_name FROM tmp_table_list WHERE row_key = curCounter) || ',';
+        ELSE 
+            SET varHashText = varHashText || (SELECT col_name FROM tmp_table_list WHERE row_key = curCounter) || ')) AS ' 
+                    || varSourceTable || '_farm_fingerprint_hash_key, * FROM ' || varSourceProject || '.' || varSourceDataset || '.' || varSourceTable || ';';
+        END IF;
+        SET curCounter = curCounter + 1;
+    END WHILE;
+
+    EXECUTE IMMEDIATE
+    varDmlPrefix || varHashText;
+
+    /*******************************************************************************************/
+    /********************************END populate target table**********************************/
+    /*******************************************************************************************/  
+END;
