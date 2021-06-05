@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE test.sp_joiner(varSourceProject STRING, varSourceDataset STRING, varTargetDataset STRING, varMainTable STRING, varJoinKey STRING, varJoinType STRING, varTableListArray ARRAY<STRING>, varRightJoinKeyArray ARRAY<STRING>)
+CREATE OR REPLACE PROCEDURE test.sp_joiner(varSourceProject STRING, varSourceDataset STRING, varTargetDataset STRING, varMainTable STRING, varJoinKey STRING, varJoinType STRING, varRightTableKeyArray ARRAY<STRUCT<right_table_name STRING, right_key_field STRING>>)
 
 BEGIN
     DECLARE curCounter INT64;
@@ -9,27 +9,29 @@ BEGIN
     DECLARE varAlias STRING;
     DECLARE varQueryText STRING;
     DECLARE varCurrentRightKey STRING;
+    DECLARE varTableListArray ARRAY<STRING>;
+    DECLARE varRightJoinKeyArray ARRAY<STRING>;
 
-
-    /*Takes the array of tables and array of join keys and creates a temp table with each, as well as a row_id for sorting*/
-    CREATE TEMP TABLE tmp_table_array AS SELECT varTableListArray AS table_array;
-    CREATE TEMP TABLE tmp_right_key_array AS SELECT varRightJoinKeyArray AS key_array;
+    /*creates a temp table with the flattened array and table/join key column names from the STRUCT fields*/
+    CREATE OR REPLACE TEMP TABLE tmp_right_table_key_list AS
+    WITH flattened_struct AS (select varRightTableKeyArray)
+    select row_number() OVER() as row_id, a FROM flattened_struct, UNNEST(varRightTableKeyArray) a
+    ;
 
     CREATE TEMP TABLE tmp_table_list AS
     SELECT 
-        ROW_NUMBER() OVER() AS key, 
-        ta AS table_array
+        row_id AS key, 
+        a.right_table_name AS table_list
     FROM 
-        tmp_table_array
-        , UNNEST(tmp_table_array.table_array) ta
+        tmp_right_table_key_list
     ;
+
     CREATE TEMP TABLE tmp_right_key_list AS
     SELECT 
-        ROW_NUMBER() OVER() AS key, 
-        tk AS table_key_array
+        row_id AS key, 
+        a.right_key_field AS table_key_list
     FROM 
-        tmp_right_key_array
-        , UNNEST(tmp_right_key_array.key_array) tk
+        tmp_right_table_key_list
     ;
 
 
@@ -51,7 +53,7 @@ BEGIN
     || '                ( '
     || '                    REPLACE '
     || '                        ( '
-    || """                            (format('%T', array_agg('a.' || column_name || ' AS ' || column_name || '__' || table_name))) """
+    || """                            (format('%T', array_agg('a.' || column_name || ' AS ' || column_name))) """
     || """                            , '[', '' """
     || '                        ) '
     || """                    , ']', '' """
@@ -70,8 +72,8 @@ BEGIN
 
 
     WHILE curCounter <= varRange DO
-        SET varCurrentTable = (SELECT table_array FROM tmp_table_list WHERE key = curCounter);
-        SET varCurrentRightKey = (SELECT table_key_array FROM tmp_right_key_list WHERE key = curCounter);
+        SET varCurrentTable = (SELECT table_list FROM tmp_table_list WHERE key = curCounter);
+        SET varCurrentRightKey = (SELECT table_key_list FROM tmp_right_key_list WHERE key = curCounter);
         SET varAlias = 'tbl' || (SELECT CAST(curCounter AS STRING));
 
         /*creates a string of column names for each child table that will eventually be used in the SELECT statement--
@@ -88,7 +90,7 @@ BEGIN
         || '                ( '
         || '                    REPLACE '
         || '                        ( '
-        || """                            (format('%T', array_agg('""" || varAlias || """' || '.' || column_name || ' AS ' || column_name || '__' || table_name || '_' || """ || curCounter || ' ))) '
+        || """                            (format('%T', array_agg('""" || varAlias || """' || '.' || column_name || ' AS ' || column_name || '_' || """ || curCounter || ' ))) '
         || """                            , '[', '' """
         || '                        ) '
         || """                    , ']', '' """
