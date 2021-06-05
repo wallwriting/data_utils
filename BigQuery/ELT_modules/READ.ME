@@ -26,7 +26,7 @@ disARRAY
       varTgtDs STRING: The target dataset--must be put in quotes (eg 'MY-TARGET-DATASET')
       varTblJoinKey STRING: The join column that will be included in all flattened tables created by the proc--must be put in quotes (eg 'my_join_column')
 
-deCOLUMNizer
+NULLdeCOLUMNizer
   - Drops all NULL fields from a table
   - ARRAY and STRUCT fields are always created in the output table as they can’t be checked for NULLs without flattening them
     Arguments:
