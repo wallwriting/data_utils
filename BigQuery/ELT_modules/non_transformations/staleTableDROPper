@@ -1,0 +1,30 @@
+CREATE OR REPLACE PROCEDURE test.sp_staletabledropper(varTargetDataset STRING, varGoBackDays INT64)
+BEGIN
+    DECLARE curCounter INT64;
+    DECLARE varRange INT64;
+    DECLARE varCurrentTable STRING;
+    DECLARE varDeleteString STRING;
+
+    EXECUTE IMMEDIATE 
+    'CREATE OR REPLACE TEMP TABLE tmp_table_list AS                                        '
+    || 'SELECT                                                                                      '
+    || '    ROW_NUMBER() OVER() AS key,                                                             '
+    || '    table_id AS table_name                                                                  '
+    || 'FROM                                                                                        '
+    ||    varTargetDataset || '.__TABLES__                                                                  '
+    || 'WHERE '
+    || 'DATE(timestamp_millis(last_modified_time)) <= CURRENT_DATE() - ' || varGoBackDays
+    || ';                                                                                           '
+    ;
+
+    SET curCounter = 1;
+    SET varRange = (SELECT COUNT(*) FROM tmp_table_list);
+
+    WHILE curCounter <= varRange DO
+        SET varCurrentTable = (SELECT table_name FROM tmp_table_list WHERE key = curCounter);
+        SET varDeleteString = 'DROP TABLE ' || varTargetDataset || '.' || varCurrentTable || '; ';
+        EXECUTE IMMEDIATE varDeleteString;
+        SET curCounter = curCounter + 1;
+
+    END WHILE;
+END;
