@@ -46,9 +46,8 @@ JOINer
       varMainTable STRING: The parent table that all other tables will join to--must be put in quotes (eg 'MY_MAIN_TABLE_NAME'
       varJoinKey STRING: The join column of the parent table--must be put in quotes (eg 'my_join_column')
       varJoinType STRING: The type of join--must be put in quotes--only one one type of join is allowed per call (eg 'INNER', 'LEFT', 'RIGHT, 'FULL OUTER', or 'CROSS')
-      varTableListArray ARRAY<STRING>: The list of child tables to be joined to the main table in brackets and quotes (eg ['table2', 'table3', 'table4'])
-      varRightJoinKeyArray ARRAY<STRING>: The list of child table join columns--must be in the same order as the table list array (eg ['join_key2', 'join_key3', join_key4'])
-
+      varRightTableKeyArray ARRAY<STRUCT<right_table_name STRING, right_key_field STRING>>: A key/value pair list of each child table and the join key (eg [(TableB', 'KeyB'), ('TableC', 'KeyC'), ('TableD', 'KeyD')])
+      
 UPSERTer
   - Takes two tables and performs an UPSERT for all fields whose names match from source to target
   - Can handle more complex scenarios than MERGE, including cases where the same record has multiple updates and handling deletes even in cases where the source table is only a subset of the target table
