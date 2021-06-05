@@ -1,6 +1,6 @@
 These are various scripts that don't transform data, but are often useful in analysis, development, and maintenance
 
-tableDROPper
+datasetTableDROPper
   Drops all tables in a dataset
   Arguments:
     varTargetDataset
@@ -14,3 +14,10 @@ rollingDELETE
     varTable STRING: table name
     varTimeColumn STRING: column to be used to gauge time (can be datetime, timestamp, or date)
     varNumberOfDays INT64: number of days to go back
+
+
+staleTableDROPper
+  Drops all tables in a dataset with a last modified date on or before a specified number of days
+  Arguments:
+    varTargetDataset STRING
+    varGoBackDays INT64--Any table that has not been modified since the current date minus this variable's number of days will get dropped
