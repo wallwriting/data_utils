@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE test.sp_decolumnizer(varSrcPrj STRING, varSrcDs STRING, varSrcTbl STRING, varTgtDs STRING)
+CREATE OR REPLACE PROCEDURE test.sp_nulldecolumnizer(varSrcPrj STRING, varSrcDs STRING, varSrcTbl STRING, varTgtDs STRING)
 BEGIN 
     DECLARE varMaxColArray STRING;
     DECLARE varGroomedColArray STRING;
