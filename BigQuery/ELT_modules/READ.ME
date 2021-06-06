@@ -79,7 +79,7 @@ COLUMNpicker
 KEYmaster
   - Creates a target table using all columns from a source table, and adds a hash key field
   - User passes a set of fields--the values will be converted to string and concatenated together, then a farm fingerprint hash will be applied
-  - The same concatenated string value will always produce the same hash
+  - The same concatenated string value will always produce the same hash--this means it can be used prior to running a JOINer in cases where tables have multi-column join keys
   Arguments:
       varSourceProject STRING
       varSourceDataset STRING
