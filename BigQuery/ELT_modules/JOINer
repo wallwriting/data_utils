@@ -53,7 +53,7 @@ BEGIN
     || '                ( '
     || '                    REPLACE '
     || '                        ( '
-    || """                            (format('%T', array_agg('a.' || column_name || ' AS ' || column_name))) """
+    || """                            (format('%T', array_agg('a.' || column_name || ' AS ' || column_name || '__' || table_name))) """
     || """                            , '[', '' """
     || '                        ) '
     || """                    , ']', '' """
@@ -90,7 +90,7 @@ BEGIN
         || '                ( '
         || '                    REPLACE '
         || '                        ( '
-        || """                            (format('%T', array_agg('""" || varAlias || """' || '.' || column_name || ' AS ' || column_name || '_' || """ || curCounter || ' ))) '
+        || """                            (format('%T', array_agg('""" || varAlias || """' || '.' || column_name || ' AS ' || column_name || '__' || table_name || '_' || """ || curCounter || ' ))) '
         || """                            , '[', '' """
         || '                        ) '
         || """                    , ']', '' """
