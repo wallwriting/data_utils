@@ -1,18 +1,19 @@
-CREATE OR REPLACE PROCEDURE test.sp_upsert(source_project STRING, source_dataset STRING, source_table STRING, source_version STRING, source_dml_indicator STRING, join_key STRING, target_dataset STRING, target_table STRING, update_var STRING, insert_var STRING)
+CREATE OR REPLACE PROCEDURE test.sp_upsert(source_project STRING, source_dataset STRING, source_table STRING, source_version STRING, 
+source_dml_indicator STRING, join_key STRING, target_dataset STRING, target_table STRING
+# , update_var STRING, insert_var STRING
+)
 BEGIN
 
-    # DECLARE
-    #     insert_var STRING;
-    # DECLARE
-    #     update_var STRING;
-    DECLARE
-        col_txt_var STRING;
-    DECLARE
-        colArrayVar STRING;
-    DECLARE
-        colArrayPrefixVar STRING;
-    DECLARE
-        finishInsertVar STRING;
+    DECLARE insert_var STRING;
+    DECLARE update_var STRING;
+    DECLARE col_txt_var STRING;
+    DECLARE colArrayVar STRING;
+    DECLARE colArrayPrefixVar STRING;
+    DECLARE finishInsertVar STRING;
+
+    # /*hard codes the dml indiciator--this will eventually need to be flexible*/
+    SET insert_var = 'I';
+    SET update_var = 'U';
 
     /*creates two sets of column lists, one with a table prefix and one without, to be used later to 
     dynamically generate the column list in the INSERT statement*/
@@ -124,10 +125,6 @@ BEGIN
     /*This ends the column list generating section*/
 
 
-    # /*hard codes the dml indiciator--this will eventually need to be flexible*/
-    # SET insert_var = """'I'""";
-    # SET update_var = """'U'""";
-
     /*for the end of the insert statement, this will create different lines based on
     whether the call passed a real dml indicator or a value of X*/
     IF UPPER(source_dml_indicator) = 'X' THEN SET finishInsertVar = '1=1'; 
@@ -169,7 +166,7 @@ BEGIN
     '                    srcmx.' || join_key || ',' || 
     '                    MAX(srcmx.' || source_version || ') AS max_version_col ' ||
     '                FROM ' ||
-                        'test.' || source_table || ' srcmx' || 
+                        source_dataset || '.' || source_table || ' srcmx' || 
     '                GROUP BY ' ||
                         join_key ||  
     '            ) mx ' ||
