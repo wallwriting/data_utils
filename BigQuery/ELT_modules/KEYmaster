@@ -9,7 +9,7 @@ BEGIN
     DECLARE varTargetTable STRING;
 
 
-    CREATE TEMP TABLE tmp_table_list AS
+    CREATE OR REPLACE TEMP TABLE tmp_table_list AS
     WITH HashColArray AS (SELECT varHashColumnArray)
     SELECT 
         ROW_NUMBER() OVER() AS row_key, 
