@@ -46,7 +46,7 @@ BEGIN
     || '                        FROM  '
     ||                            source_project || '.' || source_dataset || '.INFORMATION_SCHEMA.COLUMNS '
     || '                        WHERE  '
-    || """                            table_name = '""" || target_table || """' """
+    || """                            table_name = '""" || source_table || """' """
     || '                        ORDER BY '
     || '                            1 '
     || '                    ) tgt '
@@ -59,7 +59,7 @@ BEGIN
     || '                        FROM  '
     ||                            target_dataset || '.INFORMATION_SCHEMA.COLUMNS '
     || '                        WHERE  '
-    || """                            table_name = '""" || source_table || """' """
+    || """                            table_name = '""" || target_table || """' """
     || '                        ORDER BY '
     || '                            1 '
     || '                    ) src '
@@ -98,7 +98,7 @@ BEGIN
     || '                        FROM  '
     ||                            source_project || '.' || source_dataset || '.INFORMATION_SCHEMA.COLUMNS '
     || '                        WHERE  '
-    || """                            table_name = '""" || target_table || """' """
+    || """                            table_name = '""" || source_table || """' """
     || '                        ORDER BY '
     || '                            1 '
     || '                    ) tgt '
@@ -111,7 +111,7 @@ BEGIN
     || '                        FROM  '
     ||                            target_dataset || '.INFORMATION_SCHEMA.COLUMNS '
     || '                        WHERE  '
-    || """                            table_name = '""" || source_table || """' """
+    || """                            table_name = '""" || target_table || """' """
     || '                        ORDER BY '
     || '                            1 '
     || '                    ) src '
