@@ -14,6 +14,7 @@ col_struct           STRUCT<struct_col_string STRING, struct_col_int int64>
 ,col_left_additional1 STRING,
 ,col_left_additional2 INT64,
 ,col_left_additional3 DATE
+,datatype_mismatch STRING
 )
 
 partition by(col_date)
@@ -21,8 +22,43 @@ cluster by(id)
 ;
 
 
-# insert into test.schema_tester values(1,'string1', 11, 11.11, 11.11, 11.11, current_timestamp(), current_datetime(), current_date(), ['one', 'one1'], [1,2,3], ('one', 1), 'test1', 1, current_date())
+# insert into test.schema_tester values(1,'string1', 11, 11.11, 11.11, 11.11, current_timestamp(), current_datetime(), current_date(), ['one', 'one1'], [1,2,3], ('one', 1), 'test1', 1, current_date(), 'one')
 # ;
-insert into test.schema_tester values(2,'string1', 22, 22.22, 22.22, 22.22, current_timestamp(), current_datetime(), current_date(), ['two', 'two1'], [2,3,4], ('two', 2), 'test2', 2, current_date());
-insert into test.schema_tester values(3,'string3', 33, 33.33, 33.33, 33.33, current_timestamp(), current_datetime(), current_date(), ['three', 'three3'], [3,4,5], ('three', 3), 'test3', 3, current_date());
-insert into test.schema_tester values(4,'string3', 44, 44.44, 44.44, 44.44, current_timestamp(), current_datetime(), current_date(), ['four', 'four4'], [4,5,6], ('four', 4), 'test4', 4, current_date());
+insert into test.schema_tester values(2,'string1', 22, 22.22, 22.22, 22.22, current_timestamp(), current_datetime(), current_date(), ['two', 'two1'], [2,3,4], ('two', 2), 'test2', 2, current_date(), 'two');
+insert into test.schema_tester values(3,'string3', 33, 33.33, 33.33, 33.33, current_timestamp(), current_datetime(), current_date(), ['three', 'three3'], [3,4,5], ('three', 3), 'test3', 3, current_date(), 'three');
+insert into test.schema_tester values(4,'string3', 44, 44.44, 44.44, 44.44, current_timestamp(), current_datetime(), current_date(), ['four', 'four4'], [4,5,6], ('four', 4), 'test4', 4, current_date(), 'four');
+
+
+
+
+
+CREATE OR REPLACE TABLE eltdemo.schema_tester123
+(id     int64,
+col_string    string,
+col_int    int64,
+col_float   float64,
+col_numeric     numeric,
+col_decimal     decimal,
+col_timestamp   timestamp,
+col_datetime    datetime,
+col_date        date,
+col_array_string    ARRAY<STRING>,
+col_array_int       ARRAY<int64>,
+col_struct           STRUCT<struct_col_string STRING, struct_col_int int64>
+,col_right_additional1 STRING,
+,col_right_additional2 INT64,
+,col_right_additional3 DATE
+,datatype_mismatch INT64
+)
+
+partition by(col_date)
+cluster by(id)
+;
+
+
+insert into eltdemo.schema_tester123 values(1,'string1', 11, 11.11, 11.11, 11.11, current_timestamp(), current_datetime(), current_date(), ['one', 'one1'], [1,2,3], ('one', 1), 'test1', 1, current_date(), 1)
+;
+# insert into eltdemo.schema_tester values(2,'string1', 22, 22.22, 22.22, 22.22, current_timestamp(), current_datetime(), current_date(), ['two', 'two1'], [2,3,4], ('two', 2), 'test2', 2, current_date(), 2);
+# insert into eltdemo.schema_tester values(3,'string3', 33, 33.33, 33.33, 33.33, current_timestamp(), current_datetime(), current_date(), ['three', 'three3'], [3,4,5], ('three', 3), 'test3', 3, current_date(), 3);
+# insert into eltdemo.schema_tester values(4,'string3', 44, 44.44, 44.44, 44.44, current_timestamp(), current_datetime(), current_date(), ['four', 'four4'], [4,5,6], ('four', 4), 'test4', 4, current_date(), 4);
+
