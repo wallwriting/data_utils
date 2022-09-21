@@ -1,0 +1,151 @@
+--call test.sp_tabledropper('eltdemo');
+
+/*setup data and tables*/
+create or replace table eltdemo.source1
+(key_column   string,
+source1_string_value  string,
+source1_integer_value int64,
+source1_date_value date,
+source1_timestamp_value timestamp,
+source1_float_value float64
+);
+
+create or replace table eltdemo.source2
+(key_column2   string,
+source2_string_value  string,
+source2_integer_value int64,
+source2_date_value date,
+source2_timestamp_value timestamp,
+source2_float_value float64
+);
+
+create or replace table eltdemo.source3
+(key_column   string,
+source3_string_value  string,
+source3_integer_value int64,
+source3_date_value date,
+source3_timestamp_value timestamp,
+source3_float_value float64
+);
+
+create or replace table eltdemo.source4
+(key_column   string,
+source4_string_value  string,
+source4_integer_value int64,
+source4_date_value date,
+source4_timestamp_value timestamp,
+source4_float_value float64
+);
+
+create or replace table eltdemo.source5
+(key_column5   string,
+source5_string_value  string,
+source5_integer_value int64,
+source5_date_value date,
+source5_timestamp_value timestamp,
+source5_float_value float64
+);
+
+
+
+
+INSERT INTO eltdemo.source1 VALUES('key1', 'this is a string', 111, current_date(), current_timestamp(), 1.11);
+INSERT INTO eltdemo.source1 VALUES('key2', 'this is a string', 222, current_date(), current_timestamp(), 2.22);
+INSERT INTO eltdemo.source1 VALUES('key3', 'this is a string', 333, current_date(), current_timestamp(), 3.33);
+
+
+INSERT INTO eltdemo.source2 VALUES('key1', 'this is a string', 111, current_date(), current_timestamp(), 1.11);
+INSERT INTO eltdemo.source2 VALUES('key2', 'this is a string', 222, current_date(), current_timestamp(), 2.22);
+INSERT INTO eltdemo.source2 VALUES('key3', 'this is a string', 333, current_date(), current_timestamp(), 3.33);
+INSERT INTO eltdemo.source2 VALUES('key4', 'this is a string', 444, current_date(), current_timestamp(), 4.44);
+
+INSERT INTO eltdemo.source3 VALUES('key1', 'this is a string', 111, current_date(), current_timestamp(), 1.11);
+INSERT INTO eltdemo.source3 VALUES('key2', 'this is a string', 222, current_date(), current_timestamp(), 2.22);
+
+INSERT INTO eltdemo.source4 VALUES('mismatch_key1', 'this is a string', 111, current_date(), current_timestamp(), 1.11);
+INSERT INTO eltdemo.source4 VALUES('key5', 'this is a string', 555, current_date(), current_timestamp(), 5.55);
+INSERT INTO eltdemo.source4 VALUES('key1', 'this is a string', 111, current_date(), current_timestamp(), 1.11);
+INSERT INTO eltdemo.source4 VALUES('key2', 'this is a string', 222, current_date(), current_timestamp(), 2.22);
+INSERT INTO eltdemo.source4 VALUES('key3', 'this is a string', 333, current_date(), current_timestamp(), 3.33);
+
+INSERT INTO eltdemo.source5 VALUES('key1', 'this is a string', 111, current_date(), current_timestamp(), 1.11);
+INSERT INTO eltdemo.source5 VALUES('key2', 'this is a string', 222, current_date(), current_timestamp(), 2.22);
+INSERT INTO eltdemo.source5 VALUES('key3', 'this is a string', 333, current_date(), current_timestamp(), 3.33);
+/*END setup*/
+
+
+
+/*STANDARD*/
+/*gets all the values from the source set of tables*/ 
+call test.sp_joiner('hwangjohn-project', 'eltdemo', 'eltdemo', 'source1', 'key_column', 'FULL OUTER', [('source2', 'key_column2'), ('source3', 'key_column'), ('source4', 'key_column'), ('source5', 'key_column5')]);
+
+
+/*NON STANDARD*/
+/*creates a metadata table with just the list of key values from the source tables*/
+CREATE OR REPLACE TABLE eltdemo.META_join_list as
+SELECT
+    full_set_key_column
+FROM
+    (
+        SELECT 
+        key_column__source1 as full_set_key_column
+        FROM
+        `hwangjohn-project.eltdemo.ELT_JOINER_source1`
+
+
+        UNION DISTINCT
+
+        SELECT 
+        key_column2__source2_1
+        FROM
+        `hwangjohn-project.eltdemo.ELT_JOINER_source1`
+
+        UNION DISTINCT
+
+        SELECT 
+        key_column__source3_2
+        FROM
+        `hwangjohn-project.eltdemo.ELT_JOINER_source1`
+
+        UNION DISTINCT
+
+        SELECT 
+        key_column__source4_3
+        FROM
+        `hwangjohn-project.eltdemo.ELT_JOINER_source1`
+
+        UNION DISTINCT
+
+        SELECT 
+        source5_string_value__source5_4
+        FROM
+        `hwangjohn-project.eltdemo.ELT_JOINER_source1`
+    )
+    WHERE
+        full_set_key_column IS NOT NULL
+;
+
+
+/*STANDARD*/
+/*left joins the superset list of key values to all of the source tables*/
+call test.sp_joiner('hwangjohn-project', 'eltdemo', 'eltdemo', 'META_join_list', 'full_set_key_column', 'LEFT', [('source1', 'key_column'), ('source2', 'key_column2'), ('source3', 'key_column'), ('source4', 'key_column'), ('source5', 'key_column5')])
+;
+
+/*NON STANDARD*/
+/*in the result set from above, deletes any records where there wasn't valid data across all source tables*/
+DELETE FROM `hwangjohn-project.eltdemo.ELT_JOINER_META_join_list`
+WHERE
+source1_string_value__source1_1 IS NULL
+OR 
+source2_string_value__source2_2 IS NULL
+OR
+source3_string_value__source3_3 IS NULL
+OR 
+source4_string_value__source4_4 IS NULL
+OR 
+source5_string_value__source5_5 IS NULL
+;
+
+/*shows the result*/
+select * FROM `hwangjohn-project.eltdemo.ELT_JOINER_META_join_list`
+;
