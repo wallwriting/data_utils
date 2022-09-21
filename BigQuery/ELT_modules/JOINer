@@ -18,7 +18,7 @@ BEGIN
     select row_number() OVER() as row_id, a FROM flattened_struct, UNNEST(varRightTableKeyArray) a
     ;
 
-    CREATE TEMP TABLE tmp_table_list AS
+    CREATE OR REPLACE TEMP TABLE tmp_table_list AS
     SELECT 
         row_id AS key, 
         a.right_table_name AS table_list
@@ -26,7 +26,7 @@ BEGIN
         tmp_right_table_key_list
     ;
 
-    CREATE TEMP TABLE tmp_right_key_list AS
+    CREATE OR REPLACE TEMP TABLE tmp_right_key_list AS
     SELECT 
         row_id AS key, 
         a.right_key_field AS table_key_list
