@@ -68,7 +68,7 @@ BEGIN
     || '                    AND tgt.data_type = src.data_type '
     || '; '
     ;
-    SET colArrayVar = (SELECT column_array FROM tmp_upsert_column_list_array);
+    SET colArrayVar = (SELECT column_array FROM tmp_upsert_column_list_array ORDER BY 1);
 
     CREATE OR REPLACE TEMP TABLE tmp_upsert_prefix_column_list_array (column_array STRING);
     EXECUTE IMMEDIATE 
@@ -121,7 +121,7 @@ BEGIN
     || '; '
     ;
 
-    set colArrayPrefixVar = (SELECT column_array FROM tmp_upsert_prefix_column_list_array);
+    set colArrayPrefixVar = (SELECT column_array FROM tmp_upsert_prefix_column_list_array ORDER BY 1);
     /*This ends the column list generating section*/
 
 
