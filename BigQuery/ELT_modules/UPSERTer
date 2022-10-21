@@ -17,7 +17,7 @@ BEGIN
 
     /*creates two sets of column lists, one with a table prefix and one without, to be used later to 
     dynamically generate the column list in the INSERT statement*/
-    CREATE OR REPLACE TEMP TABLE tmp_upsert_column_list_array (column_array STRING);
+    CREATE OR REPLACE TEMP TABLE tmp_upsert_column_list_array (column_array STRING, prefix_column_array STRING);
 
     EXECUTE IMMEDIATE 
     'INSERT INTO tmp_upsert_column_list_array '
@@ -36,54 +36,16 @@ BEGIN
     || """                    , ']', '' """
     || '                ) '
     || """            , '''"''', '' """
-    || '        ) '
-    || '                FROM '
-    || '                    /*Gets the list of target columns from the INFORMATION_SCHEMA metadata table in order to compare it to the source columns*/ '
-    || '                    ( '
-    || '                        SELECT '
-    || '                            CAST(column_name AS STRING) AS column_name, '
-    || '                            data_type '
-    || '                        FROM  '
-    ||                            source_project || '.' || source_dataset || '.INFORMATION_SCHEMA.COLUMNS '
-    || '                        WHERE  '
-    || """                            table_name = '""" || source_table || """' """
-    || '                        ORDER BY '
-    || '                            1 '
-    || '                    ) tgt '
-    || '                JOIN '
-    || '                    /*Gets the list of source columns from the INFORMATION_SCHEMA metadata table in order to compare it to the target columns*/ '
-    || '                    ( '
-    || '                        SELECT '
-    || '                            CAST(column_name AS STRING) AS column_name,  '
-    || '                            data_type '
-    || '                        FROM  '
-    ||                            target_dataset || '.INFORMATION_SCHEMA.COLUMNS '
-    || '                        WHERE  '
-    || """                            table_name = '""" || target_table || """' """
-    || '                        ORDER BY '
-    || '                            1 '
-    || '                    ) src '
-    || '                    ON tgt.column_name = src.column_name '
-    || '                    /*this will filter out any columns where the names match but the datatypes do not*/ '
-    || '                    AND tgt.data_type = src.data_type '
-    || ' ORDER BY 1 '
-    || '; '
-    ;
-    SET colArrayVar = (SELECT column_array FROM tmp_upsert_column_list_array);
-
-    CREATE OR REPLACE TEMP TABLE tmp_upsert_prefix_column_list_array (column_array STRING);
-    EXECUTE IMMEDIATE 
-    'INSERT INTO tmp_upsert_prefix_column_list_array '
-    || ' SELECT ' 
-    || '    /*filters out the opening and closing brackets as well as the double quotes from the  '
-    || '    array string in order touse it as an explicity column list in the query later on*/ '
+    || '        ) ,'
+    || '    /*The second column is the same as the first, except the items on the list have  '
+    || '    a prefix of the alias name of the table that will be used later in the script*/ '
     || '    REPLACE '
     || '        ( '
     || '            REPLACE '
     || '                ( '
     || '                    REPLACE '
     || '                        ( '
-    || """                            (format('%T', ARRAY_AGG(CONCAT('src.' || tgt.column_name)))) """
+    || """                            (format('%T', array_agg('src.' || tgt.column_name))) """
     || """                            , '[', ''  """
     || '                        ) '
     || """                    , ']', '' """
@@ -100,8 +62,6 @@ BEGIN
     ||                            source_project || '.' || source_dataset || '.INFORMATION_SCHEMA.COLUMNS '
     || '                        WHERE  '
     || """                            table_name = '""" || source_table || """' """
-    || '                        ORDER BY '
-    || '                            1 '
     || '                    ) tgt '
     || '                JOIN '
     || '                    /*Gets the list of source columns from the INFORMATION_SCHEMA metadata table in order to compare it to the target columns*/ '
@@ -113,17 +73,15 @@ BEGIN
     ||                            target_dataset || '.INFORMATION_SCHEMA.COLUMNS '
     || '                        WHERE  '
     || """                            table_name = '""" || target_table || """' """
-    || '                        ORDER BY '
-    || '                            1 '
     || '                    ) src '
     || '                    ON tgt.column_name = src.column_name '
     || '                    /*this will filter out any columns where the names match but the datatypes do not*/ '
     || '                    AND tgt.data_type = src.data_type '
-    || ' ORDER BY 1 '
     || '; '
     ;
+    SET colArrayVar = (SELECT column_array FROM tmp_upsert_column_list_array);
+    set colArrayPrefixVar = (SELECT prefix_column_array FROM tmp_upsert_column_list_array);
 
-    set colArrayPrefixVar = (SELECT column_array FROM tmp_upsert_prefix_column_list_array);
     /*This ends the column list generating section*/
 
 
