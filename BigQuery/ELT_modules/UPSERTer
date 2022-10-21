@@ -66,9 +66,10 @@ BEGIN
     || '                    ON tgt.column_name = src.column_name '
     || '                    /*this will filter out any columns where the names match but the datatypes do not*/ '
     || '                    AND tgt.data_type = src.data_type '
+    || ' ORDER BY 1 '
     || '; '
     ;
-    SET colArrayVar = (SELECT column_array FROM tmp_upsert_column_list_array ORDER BY 1);
+    SET colArrayVar = (SELECT column_array FROM tmp_upsert_column_list_array);
 
     CREATE OR REPLACE TEMP TABLE tmp_upsert_prefix_column_list_array (column_array STRING);
     EXECUTE IMMEDIATE 
@@ -118,10 +119,11 @@ BEGIN
     || '                    ON tgt.column_name = src.column_name '
     || '                    /*this will filter out any columns where the names match but the datatypes do not*/ '
     || '                    AND tgt.data_type = src.data_type '
+    || ' ORDER BY 1 '
     || '; '
     ;
 
-    set colArrayPrefixVar = (SELECT column_array FROM tmp_upsert_prefix_column_list_array ORDER BY 1);
+    set colArrayPrefixVar = (SELECT column_array FROM tmp_upsert_prefix_column_list_array);
     /*This ends the column list generating section*/
 
 
