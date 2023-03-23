@@ -1,0 +1,13 @@
+A series of scripts to generate tables with data than can be used for testing
+
+Name_Generator.sql:
+  A list of first and last names with all possible combinations to form full names.
+
+generate_date_dimension.sql:
+  A script to create a date dimension that has dates plus richer metadata about the date (such as the month end date for a given date, week/quarter/year values etc.)
+  
+generate_series.sql:
+  Creates a table with a single integer column and several billion records. Used in conjunction with random data UDFs to generate large quantities of dummy data.
+  
+data_mockup.sql:
+  A script that first populates the primary key of a table with a sequence number. Then loops through each non-key column and generates dummy values. The user specifies the number of records generated. This requires both the generate_series.sql and all random data UDFs to be created in the project.
