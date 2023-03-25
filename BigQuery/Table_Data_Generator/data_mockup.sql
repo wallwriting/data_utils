@@ -1,50 +1,70 @@
 CREATE OR REPLACE PROCEDURE test.sp_datamockup(varLoadPrj STRING, varLoadDs STRING, varLoadTbl STRING, varKeyCol STRING, varLowKeyVal INT64, varHighKeyVal INT64)
 BEGIN
 
-
 DECLARE varCurColName STRING;
+DECLARE varMaxColArray STRING;
+DECLARE varGroomedColArray STRING;
 DECLARE curColTrack INT64;
 DECLARE varRangeLimit INT64;
 DECLARE varCurColDatatype STRING;
 DECLARE varRandomTimestamp STRING;
 DECLARE varRandomInt STRING;
 DECLARE varRandomString STRING;
+DECLARE varRandomDate STRING;
+DECLARE varRandomDatetime STRING;
 DECLARE varCurFunction STRING;
-DECLARE varMaxColArray STRING;
-DECLARE varGroomedColArray STRING;
 
---DECLARE varLoadTbl STRING;
---DECLARE varLoadPrj STRING;
---DECLARE varLoadDs STRING;
---DECLARE varKeyCol STRING;
--- DECLARE varLowKeyVal INT64;
--- DECLARE varHighKeyVal INT64;
 
--- SET varLoadPrj = 'test-project';
--- SET varLoadDs = 'test_dataset';
--- SET varLoadTbl = 'test_table';
--- SET varKeyCol = 'TRANSACTION_ID';
--- SET varLowKeyVal = 1;
--- SET varHighKeyVal = 408000000;
+--remove these declarations if using this as a stored proc
+DECLARE varLoadTbl STRING;
+DECLARE varLoadPrj STRING;
+DECLARE varLoadDs STRING;
+DECLARE varKeyCol STRING;
+DECLARE varLowKeyVal INT64;
+DECLARE varHighKeyVal INT64;
 
-/*these are hard-coded proc calls for the random data UTFs--change them as desired*/
+-- SET varLoadPrj = 'hwangjohn-project';
+-- SET varLoadDs = 'atd';
+-- SET varLoadTbl = 'RAW_EBS_INV_MTL_ONHAND_QUANTITIES_DETAIL';
+-- SET varKeyCol = 'INVENTORY_ITEM_ID';
+
+
+
+SET varLoadPrj = 'hwangjohn-project';
+SET varLoadDs = 'atd';
+SET varLoadTbl = 'RAW_EBS_INV_MTL_MATERIAL_TRANSACTIONS';
+SET varKeyCol = 'TRANSACTION_ID';
+
+-- SET varLoadDs = 'test';
+-- SET varLoadTbl = 'update_test';
+-- SET varKeyCol = 'id';
+SET varLowKeyVal = 1;
+SET varHighKeyVal = 10;
+
+
 SET varRandomTimestamp = """test.random_timestamp('2020-01-01 00:00:00', '2023-01-01 00:00:00')""";
 SET varRandomInt = """test.random_integer(-1000000000, 1000000000)""";
 SET varRandomString = """test.random_string(250)""";
+SET varRandomDate = """test.random_date('2020-01-01', '2023-01-01')""";
+SET varRandomDatetime = """test.random_datetime('2020-01-01 00:00:00', '2023-01-01 00:00:00')""";
+
 
 
 /******************************************************************************/
 /*************************Loads data for the key column************************/
 /******************************************************************************/
 
-/*Does the initial load of the key column--the number of rows is determined by the arguments passed*/
-EXECUTE IMMEDIATE
-'INSERT INTO ' || varLoadDs || '.' || varLoadTbl
-|| ' (' || varKeyCol || ')'
-|| 'SELECT sequence_number FROM test.meta_series WHERE sequence_number BETWEEN ' || varLowKeyVal || ' AND ' || varHighKeyVal ||';'
-;
-
+IF (select IFNULL(CAST(max(id) AS STRING), 'DELETENULLFIELD') FROM test.update_test) = 'DELETENULLFIELD' THEN 
+    /*Does the initial load of the key column--the number of rows is determined by the arguments passed*/
+    EXECUTE IMMEDIATE
+    'INSERT INTO ' || varLoadDs || '.' || varLoadTbl
+    || ' (' || varKeyCol || ')'
+    || 'SELECT sequence_number FROM test.meta_series WHERE sequence_number BETWEEN ' || varLowKeyVal || ' AND ' || varHighKeyVal ||';'
+    ;
+END IF;
+/******************************************************************************/
 /************************END SECTION*******************************************/
+/******************************************************************************/
 
 
 
@@ -79,7 +99,8 @@ EXECUTE IMMEDIATE
     ||            varLoadPrj || '.' || varLoadDs || '.INFORMATION_SCHEMA.COLUMNS '
     || '       WHERE '
     || """            table_name = '""" || varLoadTbl || """' """
-     || '        ORDER BY '
+    || """            AND LEFT(data_type, 5) NOT IN('ARRAY', 'STRUC', 'JSON') """
+    || '        ORDER BY '
     || '            ordinal_position '
     || '    ) '
     || ' ;'
@@ -94,6 +115,8 @@ EXECUTE IMMEDIATE
     || '    array string in order to use it as an explicity column list in the query later on*/          '
     || '    REPLACE                                                                                         '
     || '        (                                                                                           '
+    -- || '        REPLACE                                                                                         '
+    -- || '            (                                                                                           '
     || '            REPLACE                                                                                     '
     || '                (                                                                                       '
     || '                    REPLACE                                                                             '
@@ -105,6 +128,8 @@ EXECUTE IMMEDIATE
     || '                                )                                                                       '
     || """                          , ']', ''                                                                 """
     || '                        )                                                                               '
+    -- || """                  , '''"''', ''                                                                     """
+    -- || '                )                                                                                       '
     || """            , 'xxxDELETETHISxxx, ', ''                                                              """
     || '            )                                                                                           '
     || """        , 'xxxDELETETHISxxx', ''                                                                    """
@@ -133,6 +158,7 @@ EXECUTE IMMEDIATE
     ||                            varLoadPrj || '.' || varLoadDs || '.INFORMATION_SCHEMA.COLUMNS '
     || '                       WHERE '
     || """                            table_name = '""" || varLoadTbl || """' """
+    || """                            AND LEFT(data_type, 5) NOT IN('ARRAY', 'STRUC', 'JSON') """
     || '                        ORDER BY '
     || '                            ordinal_position '
     || '                    ) '
@@ -160,7 +186,12 @@ EXECUTE IMMEDIATE
 
 SET varGroomedColArray = (SELECT CASE WHEN TRIM(IFNULL(col_array, '')) = '' THEN '1 AS no_non_null_columns' ELSE col_array END FROM tmp_groomed_column_list_array);
 
+/****************************************************************************************/
 /***********************************END SECTION******************************************/
+/****************************************************************************************/
+
+
+
 
 /*creates a temp table that lists all columns for the table*/
 CREATE TEMP TABLE tmp_column_tracker (num_id   INT64, column_name   STRING, data_type   STRING);
@@ -176,46 +207,46 @@ EXECUTE IMMEDIATE
 ||     varLoadPrj || '.' || varLoadDs || '.INFORMATION_SCHEMA.COLUMNS ' 
 || 'WHERE '
 ||     'table_name = ' || """'""" || varLoadTbl || """' """
-||     'AND column_name NOT IN( ' || varGroomedColArray || ')'
+||     'AND column_name NOT IN( ' || varGroomedColArray || ') '
+||     """AND LEFT(data_type, 5) NOT IN('ARRAY', 'STRUC', 'JSON') """
 ||     'ORDER BY ordinal_position'
 ||     ';' 
 ;
 
-/*sets the cursor range values*/
+
 SET varRangeLimit = (SELECT COUNT(*) FROM tmp_column_tracker);
 SET curColTrack = 1;
 
-
-/*starts looping through each column names*/
+/*starts looping through each column name*/
 WHILE curColTrack <= varRangeLimit DO
 
+            CREATE OR REPLACE TEMP TABLE tmp_current_column_name (col_name STRING);
 
-        CREATE OR REPLACE TEMP TABLE tmp_current_column_name (col_name STRING);
+            EXECUTE IMMEDIATE
+            'INSERT INTO tmp_current_column_name SELECT column_name FROM tmp_column_tracker WHERE num_id = ' || curColTrack || ';' 
+            ;
 
-        EXECUTE IMMEDIATE
-        'INSERT INTO tmp_current_column_name SELECT column_name FROM tmp_column_tracker WHERE num_id = ' || curColTrack || ';' 
-        ;
+            SET varCurColName = (SELECT col_name FROM tmp_current_column_name);
+            SET varCurColDatatype = (SELECT data_type from tmp_column_tracker WHERE num_id = curColTrack);
 
-        SET varCurColName = (SELECT col_name FROM tmp_current_column_name);
-        SET varCurColDatatype = (SELECT data_type from tmp_column_tracker WHERE num_id = curColTrack);
+            IF varCurColDatatype = 'STRING' THEN SET varCurFunction = varRandomString;
+                ELSEIF varCurColDatatype = 'TIMESTAMP' THEN SET varCurFunction = varRandomTimestamp;
+                ELSEIF varCurColDatatype = 'INT64' THEN SET varCurFunction = varRandomInt;
+                ELSEIF varCurColDatatype = 'DATE' THEN SET varCurFunction = varRandomDate;
+                ELSEIF varCurColDatatype = 'DATETIME' THEN SET varCurFunction = varRandomDatetime;
+            END IF;
 
-        /*determines the datatype and uses the appropriate UDF*/
-        IF varCurColDatatype = 'STRING' THEN SET varCurFunction = varRandomString;
-            ELSEIF varCurColDatatype = 'TIMESTAMP' THEN SET varCurFunction = varRandomTimestamp;
-            ELSEIF varCurColDatatype = 'INT64' THEN SET varCurFunction = varRandomInt;
-        END IF;
-
-        /*For the current column updates it with the appropriate UDF*/
-        EXECUTE IMMEDIATE
-        'UPDATE ' || varLoadDs || '.' || varLoadTbl
-        || ' SET ' || varCurColName || ' = ' || varCurFunction
-        || ' WHERE 1=1;'
-        ;
-
-        SET curColTrack = curColTrack + 1;
+            EXECUTE IMMEDIATE
+            'UPDATE ' || varLoadDs || '.' || varLoadTbl
+            || ' SET ' || varCurColName || ' = ' || varCurFunction
+            || ' WHERE 1=1;'
+            ;
+    
+    SET curColTrack = curColTrack + 1;
 
 
 END WHILE;
+
 
 
 END
