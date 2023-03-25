@@ -15,31 +15,7 @@ DECLARE varRandomDatetime STRING;
 DECLARE varCurFunction STRING;
 
 
---remove these declarations if using this as a stored proc
-DECLARE varLoadTbl STRING;
-DECLARE varLoadPrj STRING;
-DECLARE varLoadDs STRING;
-DECLARE varKeyCol STRING;
-DECLARE varLowKeyVal INT64;
-DECLARE varHighKeyVal INT64;
 
--- SET varLoadPrj = 'hwangjohn-project';
--- SET varLoadDs = 'atd';
--- SET varLoadTbl = 'RAW_EBS_INV_MTL_ONHAND_QUANTITIES_DETAIL';
--- SET varKeyCol = 'INVENTORY_ITEM_ID';
-
-
-
-SET varLoadPrj = 'hwangjohn-project';
-SET varLoadDs = 'atd';
-SET varLoadTbl = 'RAW_EBS_INV_MTL_MATERIAL_TRANSACTIONS';
-SET varKeyCol = 'TRANSACTION_ID';
-
--- SET varLoadDs = 'test';
--- SET varLoadTbl = 'update_test';
--- SET varKeyCol = 'id';
-SET varLowKeyVal = 1;
-SET varHighKeyVal = 10;
 
 
 SET varRandomTimestamp = """test.random_timestamp('2020-01-01 00:00:00', '2023-01-01 00:00:00')""";
