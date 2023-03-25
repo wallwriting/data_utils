@@ -30,7 +30,12 @@ SET varRandomDatetime = """test.random_datetime('2020-01-01 00:00:00', '2023-01-
 /*************************Loads data for the key column************************/
 /******************************************************************************/
 
-IF (select IFNULL(CAST(max(id) AS STRING), 'DELETENULLFIELD') FROM test.update_test) = 'DELETENULLFIELD' THEN 
+EXECUTE IMMEDIATE
+'CREATE OR REPLACE TEMP TABLE tmp_key_null_check AS '
+|| 'SELECT IFNULL(CAST(MAX(' || varKeyCol || """) AS STRING), 'DELETENULLFIELD') AS nullcheck FROM """ || varLoadDs || '.' || varLoadTbl ||' ;'
+;
+
+IF (SELECT nullcheck FROM tmp_key_null_check) = 'DELETENULLFIELD' THEN 
     /*Does the initial load of the key column--the number of rows is determined by the arguments passed*/
     EXECUTE IMMEDIATE
     'INSERT INTO ' || varLoadDs || '.' || varLoadTbl
@@ -38,6 +43,7 @@ IF (select IFNULL(CAST(max(id) AS STRING), 'DELETENULLFIELD') FROM test.update_t
     || 'SELECT sequence_number FROM test.meta_series WHERE sequence_number BETWEEN ' || varLowKeyVal || ' AND ' || varHighKeyVal ||';'
     ;
 END IF;
+
 /******************************************************************************/
 /************************END SECTION*******************************************/
 /******************************************************************************/
