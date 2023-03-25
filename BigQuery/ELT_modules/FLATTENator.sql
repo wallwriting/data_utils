@@ -1,0 +1,201 @@
+
+CREATE PROCEDURE test.sp_FLATTENator(varSrcPrj STRING, varSrcDs STRING, varSrcTbl STRING, varTgtDs STRING, varTblJoinKey STRING)
+
+BEGIN
+
+
+    DECLARE varCurMatchCol STRING;
+    DECLARE varTgtTblCheck STRING;
+    DECLARE varDmlPrefix STRING;
+    DECLARE curColTrack INT64;
+    DECLARE varRangeLimit INT64;
+    DECLARE varBaseColList STRING;
+    DECLARE varDatatype5 STRING;
+    DECLARE varTgtTbl STRING;
+
+
+
+
+    /*Sets the datatype variable*/
+    SET varDatatype5 = '''"STRUC", "ARRAY"''';
+
+
+
+    /*populates temp table with all matched datatype columns;
+    a loop will iterated based on these columns so that a target 
+    table will be created/populated for each matched datatype column*/
+    EXECUTE IMMEDIATE 
+    'CREATE OR REPLACE TEMP TABLE tmp_column_tracker AS '
+    || 'SELECT                                                                      '
+    ||     'row_number() OVER() AS num_id,                                          '
+    ||     'column_name,                                                             '
+    ||     'data_type                                                             '
+    || 'FROM                                                                        '
+    ||     varSrcPrj || '.' || varSrcDs || '.INFORMATION_SCHEMA.COLUMNS             '
+    || 'WHERE                                                                       '
+    ||     'table_name = ' || """'""" || varSrcTbl || """'                        """
+--    ||     'AND LEFT(data_type, 5) IN(' || """'""" || varDatatype5 || """')         """
+    ||     'AND LEFT(data_type, 5) IN(' || varDatatype5 || ')                       '
+    ||     'ORDER BY ordinal_position                                               '
+    ||     ';                                                                       '
+    ;
+
+    /*The number of iterations in the loop equals the number of rows in the table
+    plus 1 to get a final run for the root table*/
+    SET varRangeLimit = (SELECT COUNT(*) + 1 FROM tmp_column_tracker);
+
+    /*start cursor at 1*/
+    SET curColTrack = 1;
+
+    # /*gets the list of non-matched fields to populate root table*/
+    EXECUTE IMMEDIATE 
+    'CREATE OR REPLACE TEMP TABLE tmp_column_list_array AS '
+    || 'SELECT                                                                                          '
+    || '    /*filters out the opening and closing brackets as well as the double quotes from the        '
+    || '    array string in order to use it as an explicity column list in the query later on*/          '
+    || '    REPLACE                                                                                     '
+    || '        (                                                                                       '
+    || '            REPLACE                                                                             '
+    || '                (                                                                               '
+    || '                    REPLACE                                                                     '
+    || '                        (                                                                       '
+    || """                            (format('%T', array_agg(column_name)))                          """
+    || """                          , '[', ''                                                         """
+    || '                        )                                                                       '
+    || """                  , ']', ''                                                                 """
+    || '                )                                                                               '
+    || """          , '''"''', ''                                                                     """
+    || '        ) AS column_array                                                                                       '
+    || 'FROM                                                                                            '
+    ||     varSrcPrj || '.' || varSrcDs || '.INFORMATION_SCHEMA.COLUMNS                                 ' 
+    || 'WHERE                                                                                           '
+    ||     'table_name = ' || """'""" || varSrcTbl || """'                                            """
+--    ||     'AND LEFT(data_type, 5) != ' || """'""" || varDatatype5 || """'                            """
+    ||     'AND LEFT(data_type, 5) NOT IN(' || varDatatype5 || ')                                       '
+    || ';                                                                                               '
+    ;
+
+    /* sets the variable for the columns in the base table*/
+    SET varBaseColList = (SELECT column_array FROM tmp_column_list_array);
+
+
+select varBaseColList;
+
+    /*Loops through each matched datatype column in the table then either creates a table for each column or
+    inserts if the table already exists; on the last run it creates the root table for non-matched fields*/
+    WHILE curColTrack <= (varRangeLimit) DO
+                /*******************************************************************************************/
+                /*******************START Identify current iteration column name****************************/
+                /*******************************************************************************************/
+                /*creates a temp table to populate with the SET variable for the matched column name;
+                Sets a default name for the last run to name the base table*/
+                IF curColTrack = varRangeLimit THEN SET varCurMatchCol = 'BASE';
+                ELSE
+                    EXECUTE IMMEDIATE
+                    'CREATE OR REPLACE TEMP TABLE tmp_current_unschemafied_column AS SELECT column_name AS col_name FROM tmp_column_tracker WHERE num_id = ' || curColTrack || ';' 
+                    ;
+                    SET varCurMatchCol = (SELECT col_name FROM tmp_current_unschemafied_column);
+                END IF;
+
+                /*******************************************************************************************/
+                /**********************END Identify current iteration column name***************************/
+                /*******************************************************************************************/
+
+
+                /*******************************************************************************************/
+                /****************************START Generate Target Table Name*******************************/
+                /*******************************************************************************************/    
+                /*this variable is for what should be the target table name*/
+                SET varTgtTbl = 'ELT_DESTRUCT_' || varSrcTbl || '_' || varCurMatchCol;
+
+                /*this variable is for searching a metadata view 
+                to see if the target table already exists*/
+                CREATE OR REPLACE TEMP TABLE tmp_table_checker_value (variable_value   STRING);
+
+                EXECUTE IMMEDIATE 
+                ' CREATE OR REPLACE TEMP TABLE tmp_table_checker_value AS '
+                || 'SELECT                                                                                      '
+                || '    table_id AS variable_value                                                                               '
+                || 'FROM                                                                                        '
+                ||    varTgtDs || '.__TABLES__                                                                  '
+                || 'WHERE                                                                                       '
+                || '    table_id = ' || """'ELT_DESTRUCT_""" || varSrcTbl || '_' || varCurMatchCol || """'   """
+                || ';                                                                                           '
+                ;
+                /*Sets the variable to the row in the temp table*/
+                SET varTgtTblCheck = (SELECT variable_value FROM tmp_table_checker_value);
+
+                /*******************************************************************************************/
+                /******************************END Generate Target Table Name*******************************/
+                /*******************************************************************************************/   
+
+
+                /*******************************************************************************************/
+                /******************************START populate target table**********************************/
+                /*******************************************************************************************/   
+                /*Checks intended table name against the metadata table name to see
+                if the table already exists--generates either a CREATE TABLE statement
+                or an INSERT INTO statement depending on whether the target already eixsts*/ 
+                IF varTgtTblCheck = varTgtTbl THEN SET varDmlPrefix = 'INSERT INTO ' || varTgtDs || '.ELT_DESTRUCT_' || varSrcTbl || '_' || varCurMatchCol || ' ';
+                    ELSE SET varDmlPrefix = 'CREATE TABLE ' || varTgtDs || '.ELT_DESTRUCT_' || varSrcTbl || '_' || varCurMatchCol || ' AS ';
+                END IF;
+
+                /*populates the target table with everything in the source table;
+                on the last run, populates the table with the non-matched columns, but only if there are unmatched columns*/
+                IF curColTrack != varRangeLimit THEN 
+                /*Uses different syntax depending on the datatype of the nested object (eg structure, array, json)*/
+                          /*starts with array*/
+                          IF (SELECT LEFT(data_type, 5) FROM tmp_column_tracker WHERE column_name = (SELECT col_name FROM tmp_current_unschemafied_column)) = 'ARRAY' THEN 
+                              EXECUTE IMMEDIATE 
+                              varDmlPrefix
+                              || 'SELECT                                                  ' 
+                              ||     varTblJoinKey || ' AS ' || varTblJoinKey || '_key,                                  '
+                  --            ||     varCurMatchCol || '.*                               '
+                  --            || ' FROM ' 
+                  --            ||     varSrcPrj || '.' || varSrcDs || '.' || varSrcTbl
+                              || '   unn.*                                            '
+                              || ' FROM ' 
+                              ||     varSrcPrj || '.' || varSrcDs || '.' || varSrcTbl
+                              || '   , UNNEST(' || varCurMatchCol || ') unn           '
+                              || ';                                                       '
+                              ;
+                          /*looks for STRUCTURE*/
+                          ELSEIF (SELECT LEFT(data_type, 5) FROM tmp_column_tracker WHERE column_name = (SELECT col_name FROM tmp_current_unschemafied_column)) = 'STRUC' THEN
+                                        /*populates the target table with everything in the source table;
+                                        on the last run, populates the table with the non-matched columns*/
+                              EXECUTE IMMEDIATE 
+                              varDmlPrefix
+                              || 'SELECT                                                  ' 
+                              ||     varTblJoinKey || ',                                  '
+                              ||     varCurMatchCol || '.*                               '
+                              || ' FROM ' 
+                              ||     varSrcPrj || '.' || varSrcDs || '.' || varSrcTbl
+                              || ';                                                       '
+                              ;
+                          END IF;
+                /*checks to see if this is the last run (ie base table run) and checks to see that there is at least one unmatched (ie non-nested) field*/
+                ELSEIF curColTrack = varRangeLimit AND (SELECT varBaseColList) != 'NULL' THEN 
+                    EXECUTE IMMEDIATE 
+                    varDmlPrefix
+                    || 'SELECT                                                  '
+                    ||     varBaseColList
+                    || ' FROM                                                   ' 
+                    ||     varSrcPrj || '.' || varSrcDs || '.' || varSrcTbl
+                    || ';                                                       '
+                    ;
+                END IF;
+
+
+
+                /*******************************************************************************************/
+                /********************************END populate target table**********************************/
+                /*******************************************************************************************/  
+
+                /*advances the cursor*/
+                SET curColTrack = curColTrack + 1;
+
+
+    END WHILE;
+
+
+END;
