@@ -10,4 +10,4 @@ generate_series.sql:
   Creates a table with a single integer column and several billion records. Used in conjunction with random data UDFs to generate large quantities of dummy data.
   
 data_mockup.sql:
-  A script that first populates the primary key of a table with a sequence number. Then loops through each non-key column and generates dummy values. The user specifies the number of records generated. This requires both the generate_series.sql and all random data UDFs to be created in the project.
+  A script that first populates the primary key of a table with a sequence number. Then updates each non-key column and generates dummy values. The user specifies the number of records generated. This requires both the generate_series.sql and all random data UDFs to be created in the project. The calling of the UDFs is hard coded, and if you want to change the UDF arguments, it must be changed within the script of the procedure.
