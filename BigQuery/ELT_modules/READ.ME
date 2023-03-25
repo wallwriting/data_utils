@@ -86,3 +86,13 @@ KEYmaster
       varSourceTable STRING
       varTargetDataset STRING
       varHashColumnArray ARRAY<STRING>: The list of columns you want to use for the hash key (eg ['col1', 'col2', 'col3']) 
+
+FLATTENator
+  - Unnests ARRAY and STRUCT datatypes
+  - This does the work of both the deSTRUCT and disARRAY procs in one pass. In the future, this proc will receive all updates.
+  Arguments:
+      varSrcPrj STRING: The name of the source project--must be put in quotes (eg 'MY-SOURCE-PROJECT')
+      varSrcDs STRING: The source dataset--must be put in quotes (eg 'MY-SOURCE-DATASET')
+      varSrcTbl STRING: The target dataset--must be put in quotes (eg 'MY-TARGET-DATASET')
+      varTgtDs STRING: The target dataset--must be put in quotes (eg 'MY-TARGET-DATASET')
+      varTblJoinKey STRING: The join column that will be included in all flattened tables created by the proc--must be put in quotes (eg 'my_join_column')
