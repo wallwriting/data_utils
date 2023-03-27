@@ -11,3 +11,7 @@ generate_series.sql:
   
 data_mockup.sql:
   A script that first populates the primary key of a table with a sequence number. Then updates each non-key column and generates dummy values. The user specifies the number of records generated. This requires both the generate_series.sql and all random data UDFs to be created in the project. The calling of the UDFs is hard coded, and if you want to change the UDF arguments, it must be changed within the script of the procedure. The proc will skip any column that already has data in it. It also skips any nested datatype regardless of whether it's NULL or not.
+
+
+procol_buffer_schema_generator.sql
+  Creates a protocol buffer schema using an existing table via INFORMATION_SCHEMA. Currently, results must be copy/pasted. This can be used to create a Pub/Sub topic to upload data from your data lake into your warehouse.
