@@ -8,6 +8,7 @@ DECLARE varLoadDs STRING;
 
 
 
+
 /*******************************************************************************/
 /*********Gets list of not null columns to exclude from data load***************/
 /*******************************************************************************/
@@ -25,7 +26,7 @@ DECLARE varLoadDs STRING;
     || '                    REPLACE'
     || '                        ( '
     || """                            (format('%T', array_agg(column_name))) """
-    || """                          , '''["''' , '''syntax = "proto3"; \nmessage ProtocolBuffer {\n''' """
+    || """                          , '''["''' , '''syntax = "proto3"; \nmessage ProtocolBuffer {\n\t''' """
     || '                        ) '
     || """                  , '''"]''', '''\n}''' """
     || '                ) '
@@ -34,7 +35,7 @@ DECLARE varLoadDs STRING;
     || ' FROM '
     || '    ( '
     || '        SELECT '
-    || """            data_type || ' ' || column_name || ' = ' || ordinal_position || ';' AS column_name """
+    || """            CASE WHEN data_type LIKE '%DATE%' THEN 'string' WHEN data_type LIKE '%TIME%' THEN 'string' ELSE LOWER(data_type) END || ' ' || column_name || ' = ' || ordinal_position || ';' AS column_name """
     || '        FROM '
     ||            varLoadPrj || '.' || varLoadDs || '.INFORMATION_SCHEMA.COLUMNS '
     || '       WHERE '
