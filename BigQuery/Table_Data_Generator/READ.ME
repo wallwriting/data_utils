@@ -15,3 +15,7 @@ data_mockup.sql:
 
 procol_buffer_schema_generator.sql
   Creates a protocol buffer schema using an existing table via INFORMATION_SCHEMA. Currently, results must be copy/pasted. This can be used to create a Pub/Sub topic to upload data from your data lake into your warehouse.
+
+
+export_date_partitioned_table.sql
+  Exports data to GCS using Hive partitioning by date. Don't forget the ending slash for the URI variable.
