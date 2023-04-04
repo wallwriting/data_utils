@@ -52,7 +52,7 @@ SET varCreateString = 'CREATE TABLE ' || varLoadTbl || ' AS ';
     || '    ) '
     || ' ;'
     ;
-    SET varMaxColArray = 'CREATE TABLE ' || varLoadTbl || ' AS \n( \n' || (SELECT * FROM tmp_ifnull_column_list_array);
+    SET varMaxColArray = 'CREATE TABLE ' || varLoadTbl || ' \n( \n' || (SELECT * FROM tmp_ifnull_column_list_array);
 
 select varMaxColArray;
 
