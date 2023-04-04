@@ -8,9 +8,9 @@ DECLARE varLoadPrj STRING;
 DECLARE varLoadDs STRING;
 
 
-SET varLoadTbl = 'appwv_inventory_detail';
-SET varLoadPrj = 'hwangjohn-project';
-SET varLoadDs = 'atd';
+SET varLoadTbl = 'my table';
+SET varLoadPrj = 'my project';
+SET varLoadDs = 'my dataset';
 
 
 SET varCreateString = 'CREATE TABLE ' || varLoadTbl || ' AS ';
@@ -52,7 +52,7 @@ SET varCreateString = 'CREATE TABLE ' || varLoadTbl || ' AS ';
     || '    ) '
     || ' ;'
     ;
-    SET varMaxColArray = 'CREAT TABLE ' || varLoadTbl || ' AS \n( \n' || (SELECT * FROM tmp_ifnull_column_list_array);
+    SET varMaxColArray = 'CREATE TABLE ' || varLoadTbl || ' AS \n( \n' || (SELECT * FROM tmp_ifnull_column_list_array);
 
 select varMaxColArray;
 
