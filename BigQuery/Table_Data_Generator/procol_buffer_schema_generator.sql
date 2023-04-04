@@ -40,7 +40,7 @@ DECLARE varLoadDs STRING;
     ||            varLoadPrj || '.' || varLoadDs || '.INFORMATION_SCHEMA.COLUMNS '
     || '       WHERE '
     || """            table_name = '""" || varLoadTbl || """' """
-    || """            AND LEFT(data_type, 5) NOT IN('ARRAY', 'STRUC', 'JSON') """
+--    || """            AND LEFT(data_type, 5) NOT IN('ARRAY', 'STRUC', 'JSON') """
     || '        ORDER BY '
     || '            ordinal_position '
     || '    ) '
