@@ -1,0 +1,43 @@
+CREATE OR REPLACE PROCEDURE test.sp_NullDELETEr(varDataset STRING, varTable STRING, varNullColumnArray ARRAY<STRING>)
+
+BEGIN
+    DECLARE curCounter INT64;
+    DECLARE varRange INT64;
+    DECLARE varWhereClause STRING;
+    DECLARE varCurrentColumn STRING;
+    DECLARE varOrClause STRING;
+
+    /*puts the unnested column list into a table*/
+    CREATE TEMP TABLE tmp_null_column_list AS
+    SELECT 
+        ROW_NUMBER() OVER() AS key, 
+        nca
+    FROM 
+        UNNEST(varNullColumnArray) nca
+    ;
+
+    SET curCounter = 1;
+    SET varRange = (SELECT COUNT(*) FROM tmp_null_column_list);
+    SET varWhereClause = '';
+    
+    /*writes a WHERE clause that includes where each column is null*/
+    WHILE curCounter <= varRange DO
+        IF curCounter < varRange THEN SET varOrClause = ' OR ';
+            ELSE SET varOrClause = '';
+        END IF;
+        SET varCurrentColumn = (SELECT nca FROM tmp_null_column_list WHERE key = curCounter);
+        SET varWhereClause = varWhereClause || ' ' || varCurrentColumn || ' IS NULL ' || varOrClause;
+        SET curCounter = curCounter + 1;
+    END WHILE;
+
+    EXECUTE IMMEDIATE
+    /*deletes any existing rows with nulls*/
+    'DELETE FROM ' 
+        || varDataset || '.' || varTable || 
+    ' WHERE '
+        || varWhereClause || ';'
+    ;
+
+END;
+
+
