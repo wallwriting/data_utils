@@ -96,3 +96,23 @@ FLATTENator
       varSrcTbl STRING: The target dataset--must be put in quotes (eg 'MY-TARGET-DATASET')
       varTgtDs STRING: The target dataset--must be put in quotes (eg 'MY-TARGET-DATASET')
       varTblJoinKey STRING: The join column that will be included in all flattened tables created by the proc--must be put in quotes (eg 'my_join_column')
+
+BatchCDC
+  - Takes records from multiple source tables that have been inserted after the last batch run of an ELT process
+  - This is used as the first step of an ELT pipeline to select only change data records. It requires a metadata table that stores the timestamp for the most recent batch run
+  Arguments:
+    varRightTableKeyArray ARRAY<STRUCT<right_table_project STRING, right_table_dataset STRING, 
+        right_table_name STRING, right_timestamp_field STRING, target_table_name STRING>>: An array of struct--each struct has information about 1 source and 1 target table, can pass multiple values in the array to do this for multiple tables
+    
+    varMetaTableStruct STRUCT<meta_project STRING, meta_dataset STRING, meta_table_name STRING, meta_key STRING, meta_timestamp STRING>: The metadata table with the batch run information--the table must have a key field that is an integer and a timestamp field
+
+    varTargetDataset STRING: The dataset of the target table--this means this can only be done for a single target dataset, this can be modified if each target table needs its own dataset
+
+
+NullDELETEr
+  - Deletes any records that have NULL values in any of the columns passed in the parameter
+  - This is one of the last steps of an ELT pipeline. In situations were a single target record is created from multiple source tables and/or systems, this removes any records from a table where there are NULL values in the columns stated. Such records are assumed to have incomplete source data and is therefore not valid. As data from each source lands, the record will continue to get processed in the pipeline and removed by this procecure. Once all of the source tables have landed data, then the record is considered valid and wouldn't be deleted by this process
+  Arguments:
+    varDataset STRING: The dataset where the table resides
+    varTable STRING: The name of the table
+    varNullColumnArray ARRAY<STRING>: An array of all of the columns that are to be checked for NULL values
