@@ -31,7 +31,7 @@ BEGIN
     ||     'column_name,                                                             '
     ||     'data_type                                                             '
     || 'FROM                                                                        '
-    ||     varSrcPrj || '.' || varSrcDs || '.INFORMATION_SCHEMA.COLUMNS             '
+    ||     varSrcDs || '.INFORMATION_SCHEMA.COLUMNS             '
     || 'WHERE                                                                       '
     ||     'table_name = ' || """'""" || varSrcTbl || """'                        """
 --    ||     'AND LEFT(data_type, 5) IN(' || """'""" || varDatatype5 || """')         """
