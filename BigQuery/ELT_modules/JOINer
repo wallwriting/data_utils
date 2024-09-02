@@ -61,7 +61,7 @@ BEGIN
     || """            , '''"''', '' """
     || '        ) AS col_list'
     || ' FROM '
-    ||    varSourceProject || '.' || varSourceDataset || '.INFORMATION_SCHEMA.COLUMNS '
+    ||    varSourceDataset || '.INFORMATION_SCHEMA.COLUMNS '
     || ' WHERE  '
     || """    table_catalog = '""" || varSourceProject || """' """
     || """    AND table_schema = '""" || varSourceDataset || """' """ 
