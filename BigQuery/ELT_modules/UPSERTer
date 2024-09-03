@@ -10,14 +10,21 @@ BEGIN
     DECLARE colArrayVar STRING;
     DECLARE colArrayPrefixVar STRING;
     DECLARE finishInsertVar STRING;
+    DECLARE varSessionName STRING;
 
+    /*sets the session name which will be used later to select the proper record. This is needed because BQ doesn't actually replace a temp table if it's
+    created twice in the same multi statement transaction block, which can cause errors if multiple upsert commands are used in one block*/
+    SET varSessionName = source_dataset || source_table || target_dataset || target_table;
+    
     # /*hard codes the dml indiciator--this will eventually need to be flexible*/
     SET insert_var = 'I';
     SET update_var = 'U';
 
     /*creates two sets of column lists, one with a table prefix and one without, to be used later to 
     dynamically generate the column list in the INSERT statement*/
-    CREATE OR REPLACE TEMP TABLE tmp_upsert_column_list_array (column_array STRING, prefix_column_array STRING);
+
+    CREATE OR REPLACE TEMP TABLE tmp_upsert_column_list_array (column_array STRING, prefix_column_array STRING, session_name STRING);
+
 
     EXECUTE IMMEDIATE 
     'INSERT INTO tmp_upsert_column_list_array '
@@ -52,6 +59,7 @@ BEGIN
     || '                ) '
     || """            , '''"''', '' """
     || '        ) '
+    || """        , '""" || varSessionName || """' """
     || '                FROM '
     || '                    /*Gets the list of target columns from the INFORMATION_SCHEMA metadata table in order to compare it to the source columns*/ '
     || '                    ( '
@@ -79,8 +87,8 @@ BEGIN
     || '                    AND tgt.data_type = src.data_type '
     || '; '
     ;
-    SET colArrayVar = (SELECT column_array FROM tmp_upsert_column_list_array);
-    set colArrayPrefixVar = (SELECT prefix_column_array FROM tmp_upsert_column_list_array);
+    SET colArrayVar = (SELECT column_array FROM tmp_upsert_column_list_array WHERE session_name = varSessionName);
+    SET colArrayPrefixVar = (SELECT prefix_column_array FROM tmp_upsert_column_list_array WHERE session_name = varSessionName);
 
     /*This ends the column list generating section*/
 
