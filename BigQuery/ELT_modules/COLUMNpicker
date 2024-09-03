@@ -30,7 +30,7 @@ BEGIN
     || """            , '''"''', '' """
     || '        ) AS col_list'
     || ' FROM '
-    || ' tmp_columnpicker_list'
+    || ' (SELECT * FROM tmp_columnpicker_list ORDER BY a.target_column_name)'
     || ';'
     ;
 
