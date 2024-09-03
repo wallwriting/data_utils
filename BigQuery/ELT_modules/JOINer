@@ -11,6 +11,8 @@ BEGIN
     DECLARE varCurrentRightKey STRING;
     DECLARE varTableListArray ARRAY<STRING>;
     DECLARE varRightJoinKeyArray ARRAY<STRING>;
+    DECLARE varDMLPrefix STRING;
+    DECLARE varTargetTable STRING;
 
     /*creates a temp table with the flattened array and table/join key column names from the STRUCT fields*/
     CREATE OR REPLACE TEMP TABLE tmp_right_table_key_list AS
@@ -61,7 +63,7 @@ BEGIN
     || """            , '''"''', '' """
     || '        ) AS col_list'
     || ' FROM '
-    ||    varSourceDataset || '.INFORMATION_SCHEMA.COLUMNS '
+    ||    varSourceProject || '.' || varSourceDataset || '.INFORMATION_SCHEMA.COLUMNS '
     || ' WHERE  '
     || """    table_catalog = '""" || varSourceProject || """' """
     || """    AND table_schema = '""" || varSourceDataset || """' """ 
@@ -110,9 +112,33 @@ BEGIN
         SET curCounter = curCounter + 1;
     END WHILE;
 
-    /*sets the variable to the script to create the target table, then executes the script*/
-    SET varQueryText = 'CREATE OR REPLACE TABLE ' || varTargetDataset || '.ELT_JOINER_' || varMainTable || ' AS SELECT ' || varColumnListString || ' FROM ' || varSourceProject || '.' || varSourceDataset || '.' || varMainTable || ' AS a ' || varJoinString || ' ;'
+    /*checks if the table already exists, then sets the variable to the script to create the target table or insert into it, then executes the script*/
+    
+        /*******************************************************************************************/
+        /****************************START Generate Target Table Name*******************************/
+        /*******************************************************************************************/    
+
+        /*this variable is for what should be the target table name*/
+        SET varTargetTable = 'ELT_JOINER_' || varMainTable;
+
+        /*this variable checks if the table exists--if so, uses an INSERT, if not, uses a CREATE TABLE*/
+        IF EXISTS (SELECT 1 FROM dpat.INFORMATION_SCHEMA.TABLES WHERE table_name = varTargetTable)
+        THEN SET varDMLPrefix = 'INSERT INTO ' || varTargetDataset || '.' || varTargetTable || ' ' ;
+            ELSE SET varDMLPrefix = 'CREATE OR REPLACE TABLE ' || varTargetDataset || '.' || varTargetTable || ' AS ';
+        END IF
+        ;
+
+
+        /*******************************************************************************************/
+        /******************************END Generate Target Table Name*******************************/
+        /*******************************************************************************************/   
+
+    
+    SET varQueryText = varDMLPrefix || ' SELECT ' || varColumnListString || ' FROM ' || varSourceProject || '.' || varSourceDataset || '.' || varMainTable || ' AS a ' || varJoinString || ' ;'
     ;
+
+
+
     EXECUTE IMMEDIATE 
         varQueryText
     ;
