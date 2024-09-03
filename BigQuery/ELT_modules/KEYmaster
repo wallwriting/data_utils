@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE test.sp_keymaster(varSourceProject STRING, varSourceDataset STRING, varSourceTable STRING, varTargetDataset STRING, varHashColumnArray ARRAY<STRING>)
+CREATE OR REPLACE PROCEDURE test.sp_keymaster(varSourceProject STRING, varSourceDataset STRING, varSourceTable STRING, varTargetDataset STRING, varTargetTable STRING, varTargetKey STRING, varHashColumnArray ARRAY<STRING>)
 
 BEGIN
     DECLARE varHashText STRING;
@@ -6,20 +6,26 @@ BEGIN
     DECLARE varRange INT64;
     DECLARE varTargetTableCheck STRING;
     DECLARE varDmlPrefix STRING;
-    DECLARE varTargetTable STRING;
+    DECLARE varSessionName STRING;
 
+    /*sets the session name which will be used later to select the proper record. This is needed because BQ doesn't actually replace a temp table if it's
+    created twice in the same multi statement transaction block, which can cause errors if multiple upsert commands are used in one block*/
+    SET varSessionName = varSourceDataset || varSourceTable || varTargetDataset || varTargetTable;
 
-    CREATE OR REPLACE TEMP TABLE tmp_table_list AS
+    CREATE OR REPLACE TEMP TABLE tmp_table_list (row_key INT64, session_name STRING, col_name STRING);
+
+    INSERT INTO tmp_table_list 
     WITH HashColArray AS (SELECT varHashColumnArray)
     SELECT 
         ROW_NUMBER() OVER() AS row_key, 
-        ' IFNULL(CAST(' || col_name ||  """ AS STRING), '')""" as col_name
+        varSessionName AS session_name,
+        ' IFNULL(CAST(' || col_name ||  """ AS STRING), '')""" AS col_name
     FROM 
         HashColArray
         , UNNEST(varHashColumnArray) col_name
     ;
 
-    SET varRange = (SELECT COUNT(*) FROM tmp_table_list);
+    SET varRange = (SELECT COUNT(*) FROM tmp_table_list WHERE session_name = varSessionName);
 
     SET varHashText = 'SELECT FARM_FINGERPRINT(CONCAT(';
 
@@ -31,24 +37,25 @@ BEGIN
     /*******************************************************************************************/
     /****************************START Generate Target Table Name*******************************/
     /*******************************************************************************************/    
-    /*this variable is for what should be the target table name*/
-    SET varTargetTable = 'ELT_KEYMASTER_' || varSourceTable;
+
 
     /*this variable is for searching a metadata view to see if the target table already exists*/
-    CREATE OR REPLACE TEMP TABLE tmp_table_checker_value (variable_value   STRING);
+    CREATE OR REPLACE TEMP TABLE tmp_table_checker_value (variable_value   STRING, session_name STRING);
 
     EXECUTE IMMEDIATE 
-    ' CREATE OR REPLACE TEMP TABLE tmp_table_checker_value AS '
+    ' INSERT INTO tmp_table_checker_value '
     || 'SELECT                                                                                      '
-    || '    table_id AS variable_value                                                                               '
-    || 'FROM                                                                                        '
-    ||    varTargetDataset || '.__TABLES__                                                                  '
-    || 'WHERE                                                                                       '
-    || '    table_id = ' || """'ELT_KEYMASTER_""" || varSourceTable || """'   """
-    || ';                                                                                           '
+    || '    table_id AS variable_value, '
+    || """ '""" || varSessionName || """' AS session_name """
+    || 'FROM  '
+    ||    varTargetDataset || '.__TABLES__ '
+    || 'WHERE '
+    || '    table_id = ' || """ '""" || varTargetTable || """'   """
+    || '; '
     ;
+
     /*Sets the variable to the row in the temp table*/
-    SET varTargetTableCheck = (SELECT variable_value FROM tmp_table_checker_value);
+    SET varTargetTableCheck = (SELECT variable_value FROM tmp_table_checker_value WHERE session_name = varSessionName);
 
     /*******************************************************************************************/
     /******************************END Generate Target Table Name*******************************/
@@ -63,16 +70,16 @@ BEGIN
     /*Checks intended table name against the metadata table name to see
     if the table already exists--generates either a CREATE TABLE statement
     or an INSERT INTO statement depending on whether the target already eixsts*/ 
-    IF varTargetTableCheck = varTargetTable THEN SET varDmlPrefix = 'INSERT INTO ' || varTargetDataset || '.ELT_KEYMASTER_' || varSourceTable || ' ';
-        ELSE SET varDmlPrefix = 'CREATE OR REPLACE TABLE ' || varTargetDataset || '.ELT_KEYMASTER_' || varSourceTable || ' AS ';
+    IF varTargetTableCheck = varTargetTable THEN SET varDmlPrefix = 'INSERT INTO ' || varTargetDataset || '.' || varTargetTable || ' ';
+        ELSE SET varDmlPrefix = 'CREATE OR REPLACE TABLE ' || varTargetDataset || '.' || varTargetTable || ' AS ';
     END IF;
 
     WHILE curCounter <= varRange DO
         IF curCounter < varRange 
-            THEN SET varHashText = varHashText || (SELECT col_name FROM tmp_table_list WHERE row_key = curCounter) || ',';
+            THEN SET varHashText = varHashText || (SELECT col_name FROM tmp_table_list WHERE row_key = curCounter AND session_name = varSessionName ) || ',';
         ELSE 
-            SET varHashText = varHashText || (SELECT col_name FROM tmp_table_list WHERE row_key = curCounter) || ')) AS ' 
-                    || varSourceTable || '_farm_fingerprint_hash_key, * FROM ' || varSourceProject || '.' || varSourceDataset || '.' || varSourceTable || ';';
+            SET varHashText = varHashText || (SELECT col_name FROM tmp_table_list WHERE row_key = curCounter AND session_name = varSessionName ) || ')) AS ' 
+                    || varTargetKey || ', * FROM ' || varSourceProject || '.' || varSourceDataset || '.' || varSourceTable || ';';
         END IF;
         SET curCounter = curCounter + 1;
     END WHILE;
