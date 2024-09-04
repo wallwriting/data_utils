@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE test.sp_columnpicker(varSourceProject STRING, varSourceDataset STRING, varSourceTable STRING, varTargetDataset STRING, varSelectColumnArray ARRAY<STRUCT<source_column_name STRING, target_column_name STRING>>)
+CREATE OR REPLACE PROCEDURE dpat.sp_columnpicker(varSourceProject STRING, varSourceDataset STRING, varSourceTable STRING, varTargetDataset STRING, varSelectColumnArray ARRAY<STRUCT<source_column_name STRING, target_column_name STRING>>)
 BEGIN
     DECLARE varSelectColumnString STRING;
     DECLARE varTargetTableCheck STRING;
@@ -8,7 +8,7 @@ BEGIN
     /*creates a temp table with the flattened array and source/target column names from the STRUCT fields*/
     CREATE OR REPLACE TEMP TABLE tmp_columnpicker_list AS
     WITH flattened_struct AS (select varSelectColumnArray)
-    select row_number() OVER() as row_id, a FROM flattened_struct, UNNEST(varSelectColumnArray) a
+    select a FROM flattened_struct, UNNEST(varSelectColumnArray) a
     ;
 
     EXECUTE IMMEDIATE 
@@ -81,7 +81,7 @@ BEGIN
 
     EXECUTE IMMEDIATE 
     varDmlPrefix
-    || ' SELECT ROW_NUMBER() OVER() AS ' || varSourceTable || '_row_sequence_key, ' || varSelectColumnString || ' FROM ' || varSourceProject || '.' || varSourceDataset || '.' || varSourceTable || ';'
+    || ' SELECT ' || varSelectColumnString || ' FROM ' || varSourceProject || '.' || varSourceDataset || '.' || varSourceTable || ';'
     ;
 
     /*******************************************************************************************/
