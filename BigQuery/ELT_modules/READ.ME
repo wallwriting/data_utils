@@ -68,7 +68,6 @@ UPSERTer
 COLUMNpicker
   - Create a new table using a specified subset of columns from a source table
   - New column names in the target table must also be specified
-  - Also creates a sequence number row id
   Arguments:
     varSourceProject STRING
     varSourceDataset STRING
@@ -77,7 +76,7 @@ COLUMNpicker
     varSelectColumnArray ARRAY<STRUCT<source_column_name STRING, target_column_name STRING>>): Must be sent as a key/value pair with the source column name and a target column name (eg [('source_col1', 'target_col1'), ('source_col2', 'target_col2'), ('source_col3', 'target_col3')]
 
 KEYmaster
-  - Creates a target table using all columns from a source table, and adds a hash key field
+  - Creates a target table along with a new key field based on a specified list of fields
   - User passes a set of fields--the values will be converted to string and concatenated together, then a farm fingerprint hash will be applied
   - The same concatenated string value will always produce the same hash--this means it can be used prior to running a JOINer in cases where tables have multi-column join keys
   Arguments:
