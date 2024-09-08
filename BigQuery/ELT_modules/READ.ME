@@ -43,6 +43,7 @@ JOINer
       varSourceProject STRING: The name of the source project--must be put in quotes (eg 'MY-SOURCE-PROJECT')
       varSourceDataset STRING: The source dataset--must be put in quotes (eg 'MY-SOURCE-DATASET')
       varTargetDataset STRING: The target dataset--must be put in quotes (eg 'MY-TARGET-DATASET') 
+      varTargetTable STRING: The target table--must be put in quotes(eg 'MY-TARGET-TABLE')
       varMainTable STRING: The parent table that all other tables will join to--must be put in quotes (eg 'MY_MAIN_TABLE_NAME'
       varJoinKey STRING: The join column of the parent table--must be put in quotes (eg 'my_join_column')
       varJoinType STRING: The type of join--must be put in quotes--only one one type of join is allowed per call (eg 'INNER', 'LEFT', 'RIGHT, 'FULL OUTER', or 'CROSS')
@@ -73,6 +74,7 @@ COLUMNpicker
     varSourceDataset STRING
     varSourceTable STRING
     varTargetDataset STRING
+    varTargetTable STRING
     varSelectColumnArray ARRAY<STRUCT<source_column_name STRING, target_column_name STRING>>): Must be sent as a key/value pair with the source column name and a target column name (eg [('source_col1', 'target_col1'), ('source_col2', 'target_col2'), ('source_col3', 'target_col3')]
 
 KEYmaster
