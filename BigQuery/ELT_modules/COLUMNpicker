@@ -19,7 +19,7 @@ BEGIN
     EXECUTE IMMEDIATE 
     'CREATE OR REPLACE TEMP TABLE tmp_column_list_table AS '
     || ' SELECT '
-    || varSessionName || ' AS session_name, '
+    || """ '""" || varSessionName || """' AS session_name, """
     /*filters out the opening and closing brackets as well as the double quotes from the 
     array string in order touse it as an explicity column list in the query later on*/
     || '    REPLACE '
@@ -41,7 +41,7 @@ BEGIN
     ;
 
 
-    SET varSelectColumnString = (SELECT * FROM tmp_column_list_table WHERE session_name = varSessionName)
+    SET varSelectColumnString = (SELECT col_list FROM tmp_column_list_table WHERE session_name = varSessionName)
     ;
 
 
@@ -55,7 +55,7 @@ BEGIN
     EXECUTE IMMEDIATE 
     ' CREATE OR REPLACE TEMP TABLE tmp_table_checker_value AS '
     || 'SELECT                                                                                      '
-    || varSessionName || ' AS session_name, '
+    || """ '""" || varSessionName || """' AS session_name, """
     || '    table_id AS variable_value                                                                               '
     || 'FROM                                                                                        '
     ||    varTargetDataset || '.__TABLES__                                                                  '
