@@ -5,6 +5,7 @@ BEGIN
     DECLARE varRange INT64;
     DECLARE varJoinString STRING;
     DECLARE varColumnListString STRING;
+    DECLARE varCurrentDataset STRING;
     DECLARE varCurrentTable STRING;
     DECLARE varAlias STRING;
     DECLARE varQueryText STRING;
@@ -13,7 +14,7 @@ BEGIN
     DECLARE varRightJoinKeyArray ARRAY<STRING>;
     DECLARE varDMLPrefix STRING;
     DECLARE varSessionName STRING;
-
+    DECLARE varTargetTableCheck STRING;
 
     /*sets the session name which will be used later to select the proper record. This is needed because BQ doesn't actually replace a temp table if it's created twice in the same multi statement transaction block, which can cause errors if multiple upsert commands are used in one block*/
     SET varSessionName = varSourceDataset || varMainTable || varTargetDataset || varTargetTable;
@@ -70,7 +71,7 @@ BEGIN
     EXECUTE IMMEDIATE
     'CREATE OR REPLACE TEMP TABLE tmp_column_list_table AS '
     || ' SELECT '
-    || varSessionName || ' AS session_name, '
+    || """ '""" || varSessionName || """' AS session_name, """
         /*filters out the opening and closing brackets as well as the double quotes from the 
         array string in order touse it as an explicity column list in the query later on*/
     || '    REPLACE '
@@ -114,7 +115,7 @@ BEGIN
         || ' SELECT '
             /*filters out the opening and closing brackets as well as the double quotes from the 
             array string in order touse it as an explicity column list in the query later on*/
-        || varSessionName || ' AS session_name, '
+        || """ '""" || varSessionName || """' AS session_name, """
         || '    REPLACE '
         || '        ( '
         || '            REPLACE '
@@ -129,16 +130,14 @@ BEGIN
         || """            , '''"''', '' """
         || '        ) AS col_list'
         || ' FROM '
-        ||    varSourceProject || '.' || varSourceDataset || '.INFORMATION_SCHEMA.COLUMNS '
+        ||    varCurrentDataset || '.INFORMATION_SCHEMA.COLUMNS '
         || ' WHERE  '
-        || """    table_catalog = '""" || varSourceProject || """' """
-        || """    AND table_schema = '""" || varCurrentDataset || """' """ 
-        || """    AND table_name = '""" || varCurrentTable || """'"""
+        || """    table_name = '""" || varCurrentTable || """'"""
         || ';'
         ;
         SET varColumnListString = 
                 varColumnListString || ',' || (SELECT col_list FROM tmp_column_list_table WHERE session_name = varSessionName);
-        SET varJoinString = varJoinString || ' ' ||varJoinType || ' JOIN ' || varSourceProject || '.' || varSourceDataset || '.' || varCurrentTable || ' AS ' || varAlias || ' ON a.' || varJoinKey || ' = ' || varAlias || '.' || varCurrentRightKey ;
+        SET varJoinString = varJoinString || ' ' ||varJoinType || ' JOIN ' || varSourceProject || '.' || varCurrentDataset || '.' || varCurrentTable || ' AS ' || varAlias || ' ON a.' || varJoinKey || ' = ' || varAlias || '.' || varCurrentRightKey ;
         SET curCounter = curCounter + 1;
     END WHILE;
 
@@ -154,7 +153,7 @@ BEGIN
     EXECUTE IMMEDIATE 
     ' CREATE OR REPLACE TEMP TABLE tmp_table_checker_value AS '
     || 'SELECT '
-    || varSessionName || ' AS session_name, '
+    || """ '""" || varSessionName || """' AS session_name, """
     || '    table_id AS variable_value '
     || 'FROM '
     ||    varTargetDataset || '.__TABLES__ '
