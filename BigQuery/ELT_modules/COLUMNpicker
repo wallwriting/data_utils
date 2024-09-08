@@ -52,7 +52,7 @@ BEGIN
     || 'FROM                                                                                        '
     ||    varTargetDataset || '.__TABLES__                                                                  '
     || 'WHERE                                                                                       '
-    || '    table_id = ' || """'ELT_COLUMNPICKER_""" || varSourceTable || """'   """
+    || """    table_id = '""" || varTargetTable || """'   """
     || ';                                                                                           '
     ;
     /*Sets the variable to the row in the temp table*/
@@ -71,8 +71,8 @@ BEGIN
     /*Checks intended table name against the metadata table name to see
     if the table already exists--generates either a CREATE TABLE statement
     or an INSERT INTO statement depending on whether the target already eixsts*/ 
-    IF varTargetTableCheck = varTargetTable THEN SET varDmlPrefix = 'INSERT INTO ' || varTargetDataset || '.ELT_COLUMNPICKER_' || varSourceTable || ' ';
-        ELSE SET varDmlPrefix = 'CREATE OR REPLACE TABLE ' || varTargetDataset || '.ELT_COLUMNPICKER_' || varSourceTable || ' AS ';
+    IF varTargetTableCheck = varTargetTable THEN SET varDmlPrefix = 'INSERT INTO ' || varTargetDataset || '.' || varTargetTable || ' ';
+        ELSE SET varDmlPrefix = 'CREATE OR REPLACE TABLE ' || varTargetDataset || '.' || varTargetTable || ' AS ';
     END IF;
 
 
