@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE test.sp_joiner(varSourceProject STRING, varSourceDataset STRING, varTargetDataset STRING, varTargetTable STRING, varMainTable STRING, varJoinKey STRING, varJoinType STRING, varRightTableKeyArray ARRAY<STRUCT<right_table_name STRING, right_key_field STRING>>)
+CREATE OR REPLACE PROCEDURE test.sp_joiner(varSourceProject STRING, varSourceDataset STRING, varMainTable STRING, varTargetDataset STRING, varTargetTable STRING, varJoinKey STRING, varJoinType STRING, varRightTableKeyArray ARRAY<STRUCT<right_table_name STRING, right_key_field STRING>>)
 
 BEGIN
     DECLARE curCounter INT64;
