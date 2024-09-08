@@ -149,7 +149,7 @@ BEGIN
     /*******************************************************************************************/    
 
     /*this variable is for searching a metadata view to see if the target table already exists*/
-    CREATE OR REPLACE TEMP TABLE tmp_table_checker_value (variable_value   STRING, session_name STRING);
+    CREATE OR REPLACE TEMP TABLE tmp_table_checker_value (session_name STRING, variable_value   STRING);
 
     EXECUTE IMMEDIATE 
     ' CREATE OR REPLACE TEMP TABLE tmp_table_checker_value AS '
