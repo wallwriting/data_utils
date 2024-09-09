@@ -48,7 +48,8 @@ JOINer
       varJoinKey STRING: The join column of the parent table--must be put in quotes (eg 'my_join_column')
       varJoinType STRING: The type of join--must be put in quotes--only one one type of join is allowed per call (eg 'INNER', 'LEFT', 'RIGHT, 'FULL OUTER', or 'CROSS')
       varRightTableKeyArray ARRAY<STRUCT<right_table_name STRING, right_key_field STRING>>: A key/value pair list of each child table and the join key (eg [(TableB', 'KeyB'), ('TableC', 'KeyC'), ('TableD', 'KeyD')])
-      
+  - An additional version of this procedure, JOINer_Operation, includes an operation flag in the right side tables to filter out any child tables in situations where the value in the parent table is still valid but the value in the child as been deleted
+
 UPSERTer
   - Takes two tables and performs an UPSERT for all fields whose names match from source to target
   - Can handle more complex scenarios than MERGE, including cases where the same record has multiple updates and handling deletes even in cases where the source table is only a subset of the target table
