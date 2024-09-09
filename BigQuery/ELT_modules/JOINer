@@ -196,3 +196,231 @@ BEGIN
         varQueryText
     ;
 END;
+
+
+
+
+
+/*version with operation flag*/
+CREATE OR REPLACE PROCEDURE test.sp_joiner_operation(varSourceProject STRING, varSourceDataset STRING, varMainTable STRING, varTargetDataset STRING, varTargetTable STRING, varJoinKey STRING, varJoinType STRING, varRightTableKeyArray ARRAY<STRUCT<right_dataset STRING, right_table_name STRING, right_key_field STRING, right_operation_flag STRING>>)
+
+BEGIN
+    DECLARE curCounter INT64;
+    DECLARE varRange INT64;
+    DECLARE varJoinString STRING;
+    DECLARE varColumnListString STRING;
+    DECLARE varCurrentDataset STRING;
+    DECLARE varCurrentTable STRING;
+    DECLARE varAlias STRING;
+    DECLARE varQueryText STRING;
+    DECLARE varCurrentRightKey STRING;
+    DECLARE varCurrentRightOperation STRING;
+    DECLARE varTableListArray ARRAY<STRING>;
+    DECLARE varRightJoinKeyArray ARRAY<STRING>;
+    DECLARE varDMLPrefix STRING;
+    DECLARE varSessionName STRING;
+    DECLARE varTargetTableCheck STRING;
+    DECLARE varCurrentOperationSuffix STRING;
+
+    /*sets the session name which will be used later to select the proper record. This is needed because BQ doesn't actually replace a temp table if it's created twice in the same multi statement transaction block, which can cause errors if multiple upsert commands are used in one block*/
+    SET varSessionName = varSourceDataset || varMainTable || varTargetDataset || varTargetTable;
+
+
+    /*creates a temp table with the flattened array and dataset/table/join key column names from the STRUCT fields*/
+    CREATE OR REPLACE TEMP TABLE tmp_right_table_key_list AS
+    WITH flattened_struct AS (select varRightTableKeyArray)
+    select row_number() OVER() as row_id, varSessionName AS session_name, a FROM flattened_struct, UNNEST(varRightTableKeyArray) a
+    ;
+
+    /*creates records for each dataset, then each table, then each key in the flattened data from above*/
+    CREATE OR REPLACE TEMP TABLE tmp_dataset_list AS
+    SELECT 
+        row_id AS key, 
+        session_name,
+        a.right_dataset AS dataset_list
+    FROM 
+        tmp_right_table_key_list
+    WHERE
+        session_name = varSessionName
+    ;
+
+    CREATE OR REPLACE TEMP TABLE tmp_table_list AS
+    SELECT 
+        row_id AS key,
+        session_name, 
+        a.right_table_name AS table_list
+    FROM 
+        tmp_right_table_key_list
+    WHERE
+        session_name = varSessionName
+    ;
+
+    CREATE OR REPLACE TEMP TABLE tmp_right_key_list AS
+    SELECT 
+        row_id AS key,
+        session_name, 
+        a.right_key_field AS table_key_list
+    FROM 
+        tmp_right_table_key_list
+    WHERE
+        session_name = varSessionName
+    ;
+  
+    CREATE OR REPLACE TEMP TABLE tmp_right_operation_list AS
+    SELECT 
+        row_id AS key,
+        session_name, 
+        a.right_operation_flag AS table_operation_list
+    FROM 
+        tmp_right_table_key_list
+    WHERE
+        session_name = varSessionName
+    ;
+
+
+    /*creates a string of the column names for the parent table that will eventually be used in the SELECT statement--
+    each column name is suffixed with a double underscore and the table name, this will prevent duplicate column names
+    in the target table*/
+    SET curCounter = 1;
+    SET varRange = (SELECT COUNT(*) FROM tmp_table_list);
+    SET varJoinString = '';
+    SET varColumnListString = '';
+    EXECUTE IMMEDIATE
+    'CREATE OR REPLACE TEMP TABLE tmp_column_list_table AS '
+    || ' SELECT '
+    || """ '""" || varSessionName || """' AS session_name, """
+        /*filters out the opening and closing brackets as well as the double quotes from the 
+        array string in order touse it as an explicity column list in the query later on*/
+    || '    REPLACE '
+    || '        ( '
+    || '            REPLACE '
+    || '                ( '
+    || '                    REPLACE '
+    || '                        ( '
+    || """                            (format('%T', array_agg('a.' || column_name || ' AS ' || column_name || '__' || table_name))) """
+    || """                            , '[', '' """
+    || '                        ) '
+    || """                    , ']', '' """
+    || '                ) '
+    || """            , '''"''', '' """
+    || '        ) AS col_list'
+    || ' FROM '
+    ||    varSourceProject || '.' || varSourceDataset || '.INFORMATION_SCHEMA.COLUMNS '
+    || ' WHERE  '
+    || """    table_catalog = '""" || varSourceProject || """' """
+    || """    AND table_schema = '""" || varSourceDataset || """' """ 
+    || """    AND table_name = '""" || varMainTable || """'"""
+    || ';'
+    ;
+    SET varColumnListString = (SELECT col_list FROM tmp_column_list_table WHERE session_name = varSessionName);
+
+
+    WHILE curCounter <= varRange DO
+        SET varCurrentDataset = 
+                      (SELECT dataset_list FROM tmp_dataset_list WHERE key = curCounter AND session_name = varSessionName);
+        SET varCurrentTable = 
+                      (SELECT table_list FROM tmp_table_list WHERE key = curCounter AND session_name = varSessionName);
+        SET varCurrentRightKey = 
+                      (SELECT table_key_list FROM tmp_right_key_list WHERE key = curCounter AND session_name = varSessionName);
+        SET varCurrentRightOperation = 
+                      (SELECT table_operation_list FROM tmp_right_operation_list WHERE key = curCounter AND session_name = varSessionName);
+
+        SET varAlias = 'tbl' || (SELECT CAST(curCounter AS STRING));
+
+        /*creates a string of column names for each child table that will eventually be used in the SELECT statement--
+        each column name is suffixed with a double underscore and the table name and a sequence number, 
+        this will prevent duplicate column names in the target table*/
+        EXECUTE IMMEDIATE
+        'CREATE OR REPLACE TEMP TABLE tmp_column_list_table AS '
+        || ' SELECT '
+            /*filters out the opening and closing brackets as well as the double quotes from the 
+            array string in order touse it as an explicity column list in the query later on*/
+        || """ '""" || varSessionName || """' AS session_name, """
+        || '    REPLACE '
+        || '        ( '
+        || '            REPLACE '
+        || '                ( '
+        || '                    REPLACE '
+        || '                        ( '
+        || """                            (format('%T', array_agg('""" || varAlias || """' || '.' || column_name || ' AS ' || column_name || '__' || table_name || '_' || """ || curCounter || ' ))) '
+        || """                            , '[', '' """
+        || '                        ) '
+        || """                    , ']', '' """
+        || '                ) '
+        || """            , '''"''', '' """
+        || '        ) AS col_list'
+        || ' FROM '
+        ||    varCurrentDataset || '.INFORMATION_SCHEMA.COLUMNS '
+        || ' WHERE  '
+        || """    table_name = '""" || varCurrentTable || """'"""
+        || ';'
+        ;
+        IF varCurrentRightOperation = '' THEN
+          SET varCurrentOperationSuffix = '';
+          ELSE SET varCurrentOperationSuffix = ' AND ' || varAlias || '.' || varCurrentRightOperation || """ != 'D'""";
+        END IF;
+
+        SET varColumnListString = 
+                varColumnListString || ',' || (SELECT col_list FROM tmp_column_list_table WHERE session_name = varSessionName);
+        SET varJoinString = varJoinString || ' ' ||varJoinType || ' JOIN ' || varSourceProject || '.' || varCurrentDataset || '.' || varCurrentTable || ' AS ' || varAlias || ' ON a.' || varJoinKey || ' = ' || varAlias || '.' || varCurrentRightKey  || varCurrentOperationSuffix        
+        ;
+
+
+        SET curCounter = curCounter + 1;
+    END WHILE;
+
+    /*checks if the table already exists, then sets the variable to the script to create the target table or insert into it, then executes the script*/
+    
+    /*******************************************************************************************/
+    /****************************START Generate Target Table Name*******************************/
+    /*******************************************************************************************/    
+
+    /*this variable is for searching a metadata view to see if the target table already exists*/
+    CREATE OR REPLACE TEMP TABLE tmp_table_checker_value (session_name STRING, variable_value   STRING);
+
+    EXECUTE IMMEDIATE 
+    ' CREATE OR REPLACE TEMP TABLE tmp_table_checker_value AS '
+    || 'SELECT '
+    || """ '""" || varSessionName || """' AS session_name, """
+    || '    table_id AS variable_value '
+    || 'FROM '
+    ||    varTargetDataset || '.__TABLES__ '
+    || 'WHERE '
+    || """    table_id = '""" || varTargetTable || """'   """
+    || ';'
+    ;
+    /*Sets the variable to the row in the temp table*/
+    SET varTargetTableCheck = (SELECT variable_value FROM tmp_table_checker_value WHERE session_name = varSessionName);
+
+    /*******************************************************************************************/
+    /******************************END Generate Target Table Name*******************************/
+    /*******************************************************************************************/   
+
+
+
+
+    /*******************************************************************************************/
+    /******************************START populate target table**********************************/
+    /*******************************************************************************************/   
+    /*Checks intended table name against the metadata table name to see
+    if the table already exists--generates either a CREATE TABLE statement
+    or an INSERT INTO statement depending on whether the target already eixsts*/ 
+    IF varTargetTableCheck = varTargetTable THEN SET varDmlPrefix = 'INSERT INTO ' || varTargetDataset || '.' || varTargetTable || ' ';
+        ELSE SET varDmlPrefix = 'CREATE OR REPLACE TABLE ' || varTargetDataset || '.' || varTargetTable || ' AS ';
+    END IF;
+
+
+
+    
+    SET varQueryText = varDMLPrefix || ' SELECT ' || varColumnListString || ' FROM ' || varSourceProject || '.' || varSourceDataset || '.' || varMainTable || ' AS a ' || varJoinString || ' ;'
+    ;
+
+
+    /*******************************************************************************************/
+    /********************************END populate target table**********************************/
+    /*******************************************************************************************/  
+
+    EXECUTE IMMEDIATE 
+        varQueryText
+    ;
+END;
