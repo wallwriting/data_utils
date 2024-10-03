@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE test.sp_upsert2
+CREATE OR REPLACE PROCEDURE test.sp_upsert
 (
   source_project STRING, 
   source_dataset STRING, 
@@ -103,52 +103,52 @@ BEGIN
     END IF;
 
 
+    BEGIN TRANSACTION;
+        /*This starts the actual delete and insert*/
+        EXECUTE IMMEDIATE
+        /*deletes any existing target rows that will change in the batch*/
+        'DELETE FROM ' 
+            || target_dataset || '.' || target_table || 
+        ' WHERE ' || join_key || ' IN' ||
+            /*gets target table_key that have a version number lower than the source*/
+        '    (' ||
+        '        SELECT ' ||
+        '            maxtgt.' || join_key ||
+        '        FROM ' ||
+                    source_project || '.' || source_dataset || '.' || source_table || ' as maxtgt' || 
+        '    );'
+        ;
 
-    /*This starts the actual delete and insert*/
-    EXECUTE IMMEDIATE
-    /*deletes any existing target rows that will change in the batch*/
-    'DELETE FROM ' 
-        || target_dataset || '.' || target_table || 
-    ' WHERE ' || join_key || ' IN' ||
-        /*gets target table_key that have a version number lower than the source*/
-    '    (' ||
-    '        SELECT ' ||
-    '            maxtgt.' || join_key ||
-    '        FROM ' ||
-                source_project || '.' || source_dataset || '.' || source_table || ' as maxtgt' || 
-    '    );'
-    ;
+        EXECUTE IMMEDIATE
+            /*inserts source data into target table, only inserting new rows*/
+        '    INSERT INTO ' || 
+                target_dataset || '.' || target_table ||
+        '        (' || colArrayVar || ') '  ||
+        '        SELECT '  ||
+                    /*replace this with whatever you need to insert*/
+                    colArrayPrefixVar || 
+        '        FROM '  ||
+                    /*source*/ 
+                    source_project || '.' || source_dataset || '.' || source_table || ' src' ||
+        '        JOIN ' ||
+                    /*This finds the max version number for each id*/
+        '            (' ||
+        '                SELECT ' ||
+        '                    srcmx.' || join_key || ',' || 
+        '                    MAX(srcmx.' || source_version || ') AS max_version_col ' ||
+        '                FROM ' ||
+                            source_dataset || '.' || source_table || ' srcmx' || 
+        '                GROUP BY ' ||
+                            join_key ||  
+        '            ) mx ' ||
+        '            ON src.' || join_key || ' = mx.' || join_key ||
+                    /*only gets records with the max version number*/
+        '            AND src. ' || source_version || ' = mx.max_version_col ' ||
+        '        WHERE ' ||
+                    /*only inserts inserts and updates*/
+                    finishInsertVar ||  
+        '    ;'
 
-    EXECUTE IMMEDIATE
-        /*inserts source data into target table, only inserting new rows*/
-    '    INSERT INTO ' || 
-            target_dataset || '.' || target_table ||
-    '        (' || colArrayVar || ') '  ||
-    '        SELECT '  ||
-                /*replace this with whatever you need to insert*/
-                colArrayPrefixVar || 
-    '        FROM '  ||
-                /*source*/ 
-                source_project || '.' || source_dataset || '.' || source_table || ' src' ||
-    '        JOIN ' ||
-                /*This finds the max version number for each id*/
-    '            (' ||
-    '                SELECT ' ||
-    '                    srcmx.' || join_key || ',' || 
-    '                    MAX(srcmx.' || source_version || ') AS max_version_col ' ||
-    '                FROM ' ||
-                        source_dataset || '.' || source_table || ' srcmx' || 
-    '                GROUP BY ' ||
-                        join_key ||  
-    '            ) mx ' ||
-    '            ON src.' || join_key || ' = mx.' || join_key ||
-                /*only gets records with the max version number*/
-    '            AND src. ' || source_version || ' = mx.max_version_col ' ||
-    '        WHERE ' ||
-                /*only inserts inserts and updates*/
-                finishInsertVar ||  
-    '    ;'
-
-    ;
-
+        ;
+    COMMIT TRANSACTION;
 END;
