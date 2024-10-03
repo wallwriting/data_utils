@@ -56,6 +56,7 @@ UPSERTer
   - Can handle more complex scenarios than MERGE, including cases where the same record has multiple updates and handling deletes even in cases where the source table is only a subset of the target table
   - Updates are converted to deletes and inserts to handle cases where many fields are updated
   - Proc will only consider column names that match in the source and target tables 
+  - Proc doesn't need an explicit value for deletes due to the way the IF statement is structured
     Arguments:
       source_project STRING: The name of the source project--must be put in quotes (eg 'MY-SOURCE-PROJECT')
       source_dataset STRING:  The source dataset--must be put in quotes (eg 'MY-SOURCE-DATASET')
@@ -65,8 +66,8 @@ UPSERTer
       join_key STRING: The join column of both the source and target table table--must be the same name on both source and target and must be put in quotes (eg 'my_join_column')
       target_dataset STRING: The target dataset--must be put in quotes (eg 'MY-TARGET-DATASET')
       target_table STRING: The target table--must be put in quuotes (eg 'MY_TARGET_TABLE_NAME')
-      update_var STRING: The value in the source_dml_indicator column that represents an update--must be put in quotes (eg 'U')
-      insert_var STRING: The value in the source_dml_indicator column that represents an insert--must be put in quotes (eg 'I')
+      update_var STRING: The value in the source_dml_indicator column that represents an update (eg 'U' or 'UPDATE)
+      insert_var STRING: The value in the source_dml_indicator column that represents an insert (eg 'I' or 'INSERT')
 
 COLUMNpicker
   - Create a new table using a specified subset of columns from a source table
