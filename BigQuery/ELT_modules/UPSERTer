@@ -1,11 +1,18 @@
-CREATE OR REPLACE PROCEDURE test.sp_upsert(source_project STRING, source_dataset STRING, source_table STRING, source_version STRING, 
-source_dml_indicator STRING, join_key STRING, target_dataset STRING, target_table STRING
-# , update_var STRING, insert_var STRING
+CREATE OR REPLACE PROCEDURE test.sp_upsert2
+(
+  source_project STRING, 
+  source_dataset STRING, 
+  source_table STRING, 
+  source_version STRING, 
+  source_dml_indicator STRING, --the name of the column that shows the dml indicator. Datastream calls it 'change_type'
+  join_key STRING, 
+  target_dataset STRING, 
+  target_table STRING,
+  insert_var STRING, --the value for inserts. Usually 'I' or 'INSERT'. Case sensitive.
+  update_var STRING  --the value for inserts. Usually 'U' or 'UPDATE'. Case sensitive.
 )
 BEGIN
 
-    DECLARE insert_var STRING;
-    DECLARE update_var STRING;
     DECLARE col_txt_var STRING;
     DECLARE colArrayVar STRING;
     DECLARE colArrayPrefixVar STRING;
@@ -16,10 +23,6 @@ BEGIN
     created twice in the same multi statement transaction block, which can cause errors if multiple upsert commands are used in one block*/
     SET varSessionName = source_dataset || source_table || target_dataset || target_table;
     
-    # /*hard codes the dml indiciator--this will eventually need to be flexible*/
-    SET insert_var = 'I';
-    SET update_var = 'U';
-
     /*creates two sets of column lists, one with a table prefix and one without, to be used later to 
     dynamically generate the column list in the INSERT statement*/
 
