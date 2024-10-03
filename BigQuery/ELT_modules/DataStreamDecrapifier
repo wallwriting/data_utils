@@ -1,0 +1,139 @@
+/*This proc is solely to work around the issues of how datastream creates its directory structure
+when replicates into GCS. The directory doesn't allow for partitioned external tables, which causes
+performance issues at scale. This allows devs to create an external table just on a subdirectory or file
+to keep up performance and load the data into a copy of the full source data (ie all history) into 
+an internal table. This allows for the versitility of using GCS as the data lake (otherwise you could replicate directly into BigQuery), while maintaining overall performance*/
+
+CREATE OR REPLACE PROCEDURE test.sp_datastreamdecrapifier
+(
+    varSourceProject STRING, --source project name
+    varSourceRegion STRING, --source region, needed for the biglake table creation
+    varSourceDataset STRING, --source dataset
+    varConnection STRING, --source connection, needed for the biglake table. Needs to be created beforehand
+    varFormat STRING, --format of the files (json, avro, csv, ect.)
+    varSourceUriBase ARRAY<STRING>, --An array of the source uris to be used. Needs a filename or wildcard at the end
+    varTargetDataset STRING, --dataset where the external and internal target tables will exist
+    varTargetExternalTable STRING, --name for the external table you want to create
+    varTargetInternalTable STRING, --name for the internal table you want to load data into
+    varPrimaryKeyArray ARRAY<STRING> --the logical pk of the external table, used for upserts
+)
+
+BEGIN
+
+/*Matches the parameters in the procedure. Use this to test the script*/
+  -- DECLARE varSourceProject STRING;
+  -- DECLARE varSourceRegion STRING;
+  -- DECLARE varSourceDataset STRING;
+  -- DECLARE varConnection STRING;
+  -- DECLARE varFormat STRING;
+  -- DECLARE varSourceUriBase ARRAY<STRING>;
+  -- DECLARE varTargetDataset STRING;
+  -- DECLARE varTargetExternalTable STRING;
+  -- DECLARE varTargetInternalTable STRING;
+  -- DECLARE varPrimaryKeyArray ARRAY<STRING>;
+
+  DECLARE varSourceUriModified STRING;
+  DECLARE varUriLength INT64;
+  DECLARE varRange INT64;
+  DECLARE varCounter INT64;
+  DECLARE varCurrentColumn STRING;
+  DECLARE varJoinSyntax STRING;
+  DECLARE varStringLength INT64;
+  DECLARE varKeyColumnList STRING;
+
+  /**************************************************************************/
+  /******************THIS SECTION WILL CREATE THE JOIN SYNTAX FOR************/ 
+  /******************THE MERGE STATEMENT THAT WILL BE USED LATER*************/
+  /**************************************************************************/
+
+  /*creates a temp table that unnests the array of primary key columns
+  and assigns a row number to each record*/
+  CREATE TEMP TABLE tmp_column_list AS
+  SELECT row_number() OVER () as row_id, column_name
+  FROM UNNEST(varPrimaryKeyArray) column_name
+  ;
+
+  /*keeps appending the string with columns that will be joined together*/
+  SET varRange = (select count(1) FROM tmp_column_list);
+  SET varCounter = 1;
+  SET varJoinSyntax = '';
+  SET varKeyColumnList = '';
+
+  WHILE varCounter <= varRange DO
+    SET varCurrentColumn = (SELECT column_name FROM tmp_column_list WHERE row_id = varCounter);
+    SET varJoinSyntax = varJoinSyntax || """ s.payload.""" || varCurrentColumn || """ = mx.""" || varCurrentColumn || """ AND""";
+    SET varKeyColumnList = varKeyColumnList || """ payload.""" || varCurrentColumn || """, """;
+    SET varCounter = varCounter + 1;
+  END WHILE;
+
+  /*trims off the last AND*/
+  SET varStringLength = (SELECT LENGTH(varJoinSyntax));
+  SET varJoinSyntax = (SELECT LEFT(varJoinSyntax, varStringLength - 3));
+
+  /*trims off the last comma*/
+  SET varStringLength = (SELECT LENGTH(varKeyColumnList));
+  SET varKeyColumnList = (SELECT LEFT(varKeyColumnList, varStringLength - 2));
+
+
+  /**************************************************************************/
+  /*************************END JOIN SYNTAX SECTION**************************/
+  /**************************************************************************/
+
+
+  /*converts the array of uris into string in order to use it in the execute immediate statement later*/
+  SET varSourceUriModified = (select concat(""" ['""" || array_to_string(varSourceUriBase, """', '""") || """'] """));
+
+  /*creates the external table*/
+  EXECUTE IMMEDIATE
+  """ CREATE OR REPLACE EXTERNAL TABLE """ || varTargetDataset || """.""" || varTargetExternalTable
+  || """  WITH CONNECTION `""" || varSourceProject || """`.`""" || varSourceRegion || """`.`""" || varConnection || """`"""
+  || """  OPTIONS ("""
+  || """    format = """ || varFormat || ""","""
+  || """    uris = """ || varSourceUriModified
+  || """    ); """
+  ;
+
+  /*checks if the target table already exists*/
+  EXECUTE IMMEDIATE
+  """CREATE OR REPLACE TEMP TABLE tmp_tablechecker AS """
+  || """SELECT COUNT(1) AS cnt FROM """ || varTargetDataset || """.__TABLES_SUMMARY__ WHERE table_id = '""" || varTargetInternalTable || """'; """
+  ;
+
+  /*creates a new table if it doesn't exist*/
+  IF (SELECT cnt FROM tmp_tablechecker) = 0
+    THEN EXECUTE IMMEDIATE
+    """ CREATE OR REPLACE TABLE """ 
+    || varTargetDataset || """.""" || varTargetInternalTable || """ AS """
+    || """ SELECT payload.*, source_metadata.*, source_timestamp FROM """ 
+    || varTargetDataset || """.""" || varTargetExternalTable || """;"""
+    ;
+    /*if the table doesn't exist, performs an upsert.
+    The merge function is difficult to use here 
+    because of some syntax limiations with the struct datatype*/
+    ELSE 
+      BEGIN TRANSACTION;
+      EXECUTE IMMEDIATE
+      """DELETE FROM """ || varTargetDataset || """.""" || varTargetInternalTable || """ mx """
+      || """WHERE EXISTS (SELECT 1 FROM """ 
+      || varTargetDataset || """.""" || varTargetExternalTable || """ s WHERE """ || varJoinSyntax || """); """
+      ;
+      EXECUTE IMMEDIATE
+      """ INSERT INTO """ || varTargetDataset || """.""" || varTargetInternalTable 
+      || """      SELECT s.payload.*, s.source_metadata.*, s.source_timestamp """
+      || """      FROM """ || varTargetDataset || """.""" || varTargetExternalTable || """ s """
+      || """      JOIN """
+      || """        ( """
+      || """          SELECT """
+      ||            varKeyColumnList
+      || """            , MAX(source_timestamp) as source_timestamp """
+      || """          FROM """
+      ||            varTargetDataset || """.""" || varTargetExternalTable
+      || """          GROUP BY """
+      ||            varKeyColumnList
+      || """        ) mx """
+      || """          ON """ || varJoinSyntax || """ AND s.source_timestamp = mx.source_timestamp; """ 
+      ;
+      COMMIT TRANSACTION;
+  END IF;
+
+END
