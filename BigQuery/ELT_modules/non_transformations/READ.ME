@@ -21,3 +21,9 @@ staleTableDROPper
   Arguments:
     varTargetDataset STRING
     varGoBackDays INT64--Any table that has not been modified since the current date minus this variable's number of days will get dropped
+
+TRUNCATor
+  truncates specified tables in a dataset
+  Arguments:
+    varDataset STRING
+    varTableArray ARRAY<STRING>
