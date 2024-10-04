@@ -1,0 +1,40 @@
+CREATE OR REPLACE PROCEDURE test.sp_truncator(varDataset STRING, varTableArray ARRAY<STRING>)
+
+BEGIN
+    DECLARE varExecuteSql STRING;
+    DECLARE varRange INT64;
+    DECLARE varCounter INT64;
+    DECLARE varCurrentTable STRING;
+
+    DECLARE varTableString STRING;
+
+    /*checks information schema to make sure the tables actually exist,
+    then creates a temp table that unnests the array of tables and assigns a row number to each record*/
+
+    SET varTableString = """ '""" || (SELECT ARRAY_TO_STRING(varTableArray, """', '""")) || """' """;
+
+    /*creates a temp table with the list of valid table names*/
+    EXECUTE IMMEDIATE
+    """CREATE TEMP TABLE tmp_table_list AS """ 
+    || """SELECT row_number() OVER () as row_id, table_name FROM """ || varDataset || """.INFORMATION_SCHEMA.TABLES WHERE table_name IN(""" || varTableString || """); """
+    ;
+
+    /*iterates through table list and truncates each table*/
+    SET varRange = (select count(1) FROM tmp_table_list);
+    SET varCounter = 1;
+    SET varExecuteSql = '';
+
+    BEGIN TRANSACTION;
+        WHILE varCounter <= varRange DO
+            SET varCurrentTable = (SELECT table_name FROM tmp_table_list WHERE row_id = varCounter);
+            SET varExecuteSql = 
+                """TRUNCATE TABLE """ || varDataset || """.""" || varCurrentTable || """; """
+            ;
+            EXECUTE IMMEDIATE
+                varExecuteSql;
+            SET varCounter = varCounter + 1;
+        END WHILE;
+    COMMIT TRANSACTION;
+END
+
+
