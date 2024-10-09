@@ -99,7 +99,7 @@ FLATTENator
   Arguments:
       varSrcPrj STRING: The name of the source project--must be put in quotes (eg 'MY-SOURCE-PROJECT')
       varSrcDs STRING: The source dataset--must be put in quotes (eg 'MY-SOURCE-DATASET')
-      varSrcTbl STRING: The target dataset--must be put in quotes (eg 'MY-TARGET-DATASET')
+      varSrcTbl STRING: The source table--must be put in quotes (eg 'MY-SOURCE-table')
       varTgtDs STRING: The target dataset--must be put in quotes (eg 'MY-TARGET-DATASET')
       varTblJoinKey STRING: The join column that will be included in all flattened tables created by the proc--must be put in quotes (eg 'my_join_column')
 
@@ -159,6 +159,9 @@ unJSONer
   - flattens any json columns in a table, placing each into their own tables with schema
   - creates tables if they don't exist, inserts into tables if they do--this might need to be changed so that it always drops and recreates the table
   Arguments:
-      argDataset
-      argTable
-      argRecordId: the primary key of the source table
+    argSourceProject STRING
+    argSourceDataset STRING
+    argSourceTable STRING
+    argSourceRecordId STRING: the primary key identifier for rows in the source table
+    argTargetProject STRING
+    argTargetDataset STRING
