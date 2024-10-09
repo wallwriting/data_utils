@@ -1,5 +1,5 @@
 
-CREATE OR REPLACE PROCEDURE test.sp_unjsoner(argDataset STRING, argTable STRING, argRecordId STRING)
+CREATE OR REPLACE PROCEDURE test.sp_unjsoner(argSourceProject STRING, argSourceDataset STRING, argSourceTable STRING, argSourceRecordId STRING, argTargetProject STRING, argTargetDataset STRING)
 BEGIN
   declare varOuterCounter INT64;
   declare varOuterRange INT64;
@@ -12,18 +12,25 @@ BEGIN
   -- declare varQueryStringLength INT64;
 
   -- /*this declares the arguments. Used for testing only*/
-  -- declare argDataset STRING;
-  -- declare argTable STRING;
-  -- declare argRecordId STRING;
-  -- SET argDataset = 'dataset33';
-  -- SET argTable = 'json_test_table';
-  -- SET argRecordId = 'table_key';
+  -- DECLARE argSourceProject STRING;
+  -- declare argSourceDataset STRING;
+  -- declare argSourceTable STRING;
+  -- declare argSourceRecordId STRING;
+  -- declare argTargetProject STRING;
+  -- declare argTargetDataset STRING;
+
+  -- SET argSourceProject = 'bq-training-433412';
+  -- SET argSourceDataset = 'dataset33';
+  -- SET argSourceTable = 'json_test_table';
+  -- SET argSourceRecordId = 'table_key';
+  -- SET argTargetProject = 'bq-training-433412';
+  -- SET argTargetDataset = 'dataset33';
   -- /*end section*/
 
   /*this lists all columns in the table that have a JSON datatype*/
   EXECUTE IMMEDIATE
   """CREATE OR REPLACE TEMP TABLE tmp_json_field_name AS """||
-  """SELECT row_number() OVER() as row_id, column_name FROM """||argDataset||""".INFORMATION_SCHEMA.COLUMNS WHERE table_name = '"""||argTable||"""' AND data_type = 'JSON';"""
+  """SELECT row_number() OVER() as row_id, column_name FROM """||argSourceProject||"""."""||argSourceDataset||""".INFORMATION_SCHEMA.COLUMNS WHERE table_name = '"""||argSourceTable||"""' AND data_type = 'JSON';"""
   ;
   /*this counts the number of json columns so it knows how many times to iterate the loop*/
   SET varOuterCounter = 1;
@@ -35,7 +42,7 @@ BEGIN
     /*creates a unique set of all of the field names (ie keys in a key value pair) inside the current json object*/
     EXECUTE IMMEDIATE
     """CREATE OR REPLACE TEMP TABLE tmp_table_names AS """|| 
-    """SELECT row_number() OVER() as row_id, col_field_name FROM """||argDataset||"""."""||argTable||""", UNNEST(JSON_KEYS("""||varCurrentOuterField||""")) as col_field_name """||
+    """SELECT row_number() OVER() as row_id, col_field_name FROM """||argSourceProject||"""."""||argSourceDataset||"""."""||argSourceTable||""", UNNEST(JSON_KEYS("""||varCurrentOuterField||""")) as col_field_name """||
     """GROUP BY col_field_name;"""
     ;
     /*starts setting up for the nested loop*/
@@ -52,26 +59,21 @@ BEGIN
       END WHILE;
       /*end of inner loop*/
 
-      -- /*removes trailing comma*/
-      -- SET varQueryStringLength = (SELECT LENGTH(varQueryString));
-      -- SET varQueryString = (SELECT LEFT(varQueryString, varQueryStringLength-2));
-      -- /*end comma trim*/
-
       /*This checks to see if the target table name already exists, and if so, uses an insert statement, otherwise it will use a create table statement*/
       EXECUTE IMMEDIATE
       """CREATE OR REPLACE TEMP TABLE tmp_table_exists_check AS """||
-      """SELECT COUNT(1) as cnt FROM """||argDataset||""".INFORMATION_SCHEMA.TABLES WHERE table_name = 'ELT_json_""" || argTable||"""_"""||varCurrentOuterField||"""';"""
+      """SELECT COUNT(1) as cnt FROM """||argTargetProject||"""."""||argTargetDataset||""".INFORMATION_SCHEMA.TABLES WHERE table_name = 'ELT_json_""" || argSourceTable||"""_"""||varCurrentOuterField||"""';"""
       ;
       IF (SELECT cnt FROM tmp_table_exists_check) = 1 THEN
-        SET varQueryPrefix = """INSERT INTO """ || argDataset || """.ELT_json_""" || argTable || """_""" || varCurrentOuterField || """ """;
+        SET varQueryPrefix = """INSERT INTO """ || argTargetProject||"""."""||argTargetDataset|| """.ELT_json_""" || argSourceTable || """_""" || varCurrentOuterField || """ """;
       ELSE
-        SET varQueryPrefix = """CREATE TABLE """ || argDataset || """.ELT_json_""" || argTable || """_""" || varCurrentOuterField || """ AS """;
+        SET varQueryPrefix = """CREATE TABLE """ || argTargetProject||"""."""||argTargetDataset|| """.ELT_json_""" || argSourceTable || """_""" || varCurrentOuterField || """ AS """;
       END IF
       ;
 
       EXECUTE IMMEDIATE
       varQueryPrefix||
-      """SELECT """||varQueryString||argRecordId||""" FROM """||argDataset||"""."""||argTable||""";"""
+      """SELECT """||varQueryString||argSourceRecordId||""" FROM """|| argSourceProject||"""."""||argSourceDataset||"""."""||argSourceTable||""";"""
       ;
     SET varOuterCounter = varOuterCounter + 1;
   END WHILE;
