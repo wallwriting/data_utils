@@ -1,0 +1,79 @@
+
+CREATE OR REPLACE PROCEDURE test.sp_unjsoner(argDataset STRING, argTable STRING, argRecordId STRING)
+BEGIN
+  declare varOuterCounter INT64;
+  declare varOuterRange INT64;
+  declare varCurrentOuterField STRING;
+  declare varQueryPrefix STRING;
+  declare varCurrentInnerField STRING;
+  declare varInnerCounter INT64;
+  declare varInnerRange INT64;
+  declare varQueryString STRING;
+  -- declare varQueryStringLength INT64;
+
+  -- /*this declares the arguments. Used for testing only*/
+  -- declare argDataset STRING;
+  -- declare argTable STRING;
+  -- declare argRecordId STRING;
+  -- SET argDataset = 'dataset33';
+  -- SET argTable = 'json_test_table';
+  -- SET argRecordId = 'table_key';
+  -- /*end section*/
+
+  /*this lists all columns in the table that have a JSON datatype*/
+  EXECUTE IMMEDIATE
+  """CREATE OR REPLACE TEMP TABLE tmp_json_field_name AS """||
+  """SELECT row_number() OVER() as row_id, column_name FROM """||argDataset||""".INFORMATION_SCHEMA.COLUMNS WHERE table_name = '"""||argTable||"""' AND data_type = 'JSON';"""
+  ;
+  /*this counts the number of json columns so it knows how many times to iterate the loop*/
+  SET varOuterCounter = 1;
+  SET varOuterRange = (SELECT COUNT(1) FROM tmp_json_field_name);
+
+  /*starts outer loop which goes through every column in a table that is a json*/
+  WHILE varOuterCounter <= varOuterRange DO
+    SET varCurrentOuterField = (SELECT column_name FROM tmp_json_field_name WHERE row_id = varOuterCounter);
+    /*creates a unique set of all of the field names (ie keys in a key value pair) inside the current json object*/
+    EXECUTE IMMEDIATE
+    """CREATE OR REPLACE TEMP TABLE tmp_table_names AS """|| 
+    """SELECT row_number() OVER() as row_id, col_field_name FROM """||argDataset||"""."""||argTable||""", UNNEST(JSON_KEYS("""||varCurrentOuterField||""")) as col_field_name """||
+    """GROUP BY col_field_name;"""
+    ;
+    /*starts setting up for the nested loop*/
+    SET varInnerRange = (select count(1) FROM tmp_table_names);
+    SET varInnerCounter = 1;
+    SET varQueryString = '';
+    SET varCurrentInnerField = '';
+      /*starts inner loop which goes through every field name key in a single json column*/
+      WHILE varInnerCounter <= varInnerRange DO
+        SET varCurrentInnerField = (SELECT col_field_name FROM tmp_table_names WHERE row_id = varInnerCounter);
+        /*adds syntax to trim off double quotes*/
+        SET varQueryString = varQueryString || """TRIM(TO_JSON_STRING("""||varCurrentOuterField || """.""" || varCurrentInnerField || """), '''"''') as """ ||varCurrentInnerField||""", """;
+        SET varInnerCounter = varInnerCounter + 1;
+      END WHILE;
+      /*end of inner loop*/
+
+      -- /*removes trailing comma*/
+      -- SET varQueryStringLength = (SELECT LENGTH(varQueryString));
+      -- SET varQueryString = (SELECT LEFT(varQueryString, varQueryStringLength-2));
+      -- /*end comma trim*/
+
+      /*This checks to see if the target table name already exists, and if so, uses an insert statement, otherwise it will use a create table statement*/
+      EXECUTE IMMEDIATE
+      """CREATE OR REPLACE TEMP TABLE tmp_table_exists_check AS """||
+      """SELECT COUNT(1) as cnt FROM """||argDataset||""".INFORMATION_SCHEMA.TABLES WHERE table_name = 'ELT_json_""" || argTable||"""_"""||varCurrentOuterField||"""';"""
+      ;
+      IF (SELECT cnt FROM tmp_table_exists_check) = 1 THEN
+        SET varQueryPrefix = """INSERT INTO """ || argDataset || """.ELT_json_""" || argTable || """_""" || varCurrentOuterField || """ """;
+      ELSE
+        SET varQueryPrefix = """CREATE TABLE """ || argDataset || """.ELT_json_""" || argTable || """_""" || varCurrentOuterField || """ AS """;
+      END IF
+      ;
+
+      EXECUTE IMMEDIATE
+      varQueryPrefix||
+      """SELECT """||varQueryString||argRecordId||""" FROM """||argDataset||"""."""||argTable||""";"""
+      ;
+    SET varOuterCounter = varOuterCounter + 1;
+  END WHILE;
+  /*end of outer loop*/
+END
