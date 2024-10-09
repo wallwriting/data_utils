@@ -107,12 +107,9 @@ BatchCDC
   - Takes records from multiple source tables that have been inserted after the last batch run of an ELT process
   - This is used as the first step of an ELT pipeline to select only change data records. It requires a metadata table that stores the timestamp for the most recent batch run
   Arguments:
-    varRightTableKeyArray ARRAY<STRUCT<right_table_project STRING, right_table_dataset STRING, 
-        right_table_name STRING, right_timestamp_field STRING, target_table_name STRING>>: An array of struct--each struct has information about 1 source and 1 target table, can pass multiple values in the array to do this for multiple tables
-    
-    varMetaTableStruct STRUCT<meta_project STRING, meta_dataset STRING, meta_table_name STRING, meta_key STRING, meta_timestamp STRING>: The metadata table with the batch run information--the table must have a key field that is an integer and a timestamp field
-
-    varTargetDataset STRING: The dataset of the target table--this means this can only be done for a single target dataset, this can be modified if each target table needs its own dataset
+    argSourceTableArray ARRAY<STRUCT<col_source_project_name STRING, col_source_dataset STRING, col_source_table_name STRING, col_source_timestamp_field_name STRING, col_target_table_name STRING>>: An array of struct--each struct has information about 1 source and 1 target table, can pass multiple values in the array to do this for multiple tables. The timestamp field in this section does not have to be an actual timestamp, but it must be sometype of calendar field (date, datetime, etc.) that can be cast to a timestamp. Use brackets then parentheses
+    argMetaTableStruct STRUCT<meta_project STRING, meta_dataset STRING, meta_table_name STRING, meta_key STRING, meta_timestamp STRING>: The metadata table with the batch run information--the table must have a key field that is an integer and a timestamp field--use parentheses only
+    argTargetDataset STRING: The dataset of the target table--this means this can only be done for a single target dataset, this canbe modified if each target table needs its own dataset
 
 
 NullDELETEr
@@ -139,3 +136,21 @@ DataStreamDecrapifier
       varTargetExternalTable STRING: name for the external table you want to create
       varTargetInternalTable STRING: name for the internal table you want to load data into
       varPrimaryKeyArray ARRAY<STRING>: the logical pk of the external table, used for upserts
+
+DataStreamDecrapifier_incremental
+  - Same as above, except this version automatically picks up all valid uri subdirectories for a table going back a period of time you specify
+  - This is used in cases where passing hard-coded arguments for the uri wouldn't be feasible.
+  - Note there are two extra arguments here
+    Arguments:
+      argSourceProject STRING: source project name
+      argSourceRegion STRING: source region, needed for the biglake table creation
+      argSourceDataset STRING: source dataset
+      argConnection STRING: source connection, needed for the biglake table. Needs to be created beforehand
+      argFormat STRING: format of the files (json, avro, csv, ect.)
+      argSourceUriBase ARRAY<STRING>: An array of the source uris to be used. Needs a filename or wildcard at the end
+      argTargetDataset STRING: dataset where the external and internal target tables will exist
+      argTargetExternalTable STRING: name for the external table you want to create
+      argTargetInternalTable STRING: name for the internal table you want to load data into
+      argPrimaryKeyArray ARRAY<STRING>: the logical pk of the external table, used for upserts
+      argDatePart STRING, --the part of the date you want to increment by. This can only be DAY, HOUR, or MINUTE
+      argGoBackInterval INT64 --how far back you want the datapart to go back. For example if date part is DAY, and this value is 3, that means you want it to go back three days from today.
