@@ -48,7 +48,7 @@ BEGIN
 
   /*creates a temp table that unnests the array of primary key columns
   and assigns a row number to each record*/
-  CREATE TEMP TABLE tmp_column_list AS
+  CREATE OR REPLACE TEMP TABLE tmp_column_list AS
   SELECT row_number() OVER () as row_id, column_name
   FROM UNNEST(varPrimaryKeyArray) column_name
   ;
