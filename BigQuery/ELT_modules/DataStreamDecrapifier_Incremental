@@ -68,7 +68,7 @@ to keep up performance and load the data into a copy of the full source data (ie
 --   SET argTargetExternalTable = 'ext_MY_TABLE_NAME';
 --   SET argTargetInternalTable = 'src_MY_TABLE_NAME';
 --   SET argPrimaryKeyArray = ['MY_KEY_COLUMN_1', 'MY_KEY_COLUMN_2'];
---   SET argDatePart = ['MY-DATEPART'];
+--   SET argDatePart = 'MY-DATEPART';
 --   SET argGoBackInterval = MY-INTEGER;
 -- /*end section*/
 
@@ -92,7 +92,7 @@ to keep up performance and load the data into a copy of the full source data (ie
 
 
   /*sets the variable to negative if it's positive*/
-  IF argGoBackInterval > 1 THEN
+  IF argGoBackInterval >= 1 THEN
     SET argGoBackInterval = -1*argGoBackInterval;
   END IF;
 
