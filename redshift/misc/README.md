@@ -21,3 +21,6 @@ select * FROM tmp_sp_wrapper_table;
 <p>COMMIT;
 
 The second argument should exclude the unerlying proc's parentheses, but should include any single quotes and commas. The beginning and end double dollar signs have to stay in so that the database will treat everything in between as literal. The double dollar signs replace the single quote you would normally use to pass the argument.
+
+### - information_schema_casts:
+information_schema tables sometimes use datatypes that are incompatible with using them with cursors or inserting them into other tables. These scripts cast the columns into compatible datatypes.
