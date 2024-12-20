@@ -1,0 +1,40 @@
+/*****************/
+/*****columns*****/
+/*****************/
+SELECT
+    table_catalog :: varchar,
+    table_schema :: varchar,
+    table_name  :: varchar,
+    column_name  :: varchar,
+    ordinal_position :: int,
+    column_default  :: varchar,
+    is_nullable  :: varchar,
+    data_type  :: varchar,
+    character_maximum_length  :: int,
+    character_octet_length :: int,
+    numeric_precision  :: int,
+    numeric_precision_radix  :: int,
+    numeric_scale  :: int,
+    datetime_precision :: int,
+    interval_type :: varchar,
+    interval_precision :: int,
+    character_set_catalog :: varchar,
+    character_set_schema :: varchar,
+    character_set_name :: varchar,
+    collation_catalog :: varchar,
+    collation_schema :: varchar,
+    collation_name :: varchar,
+    domain_catalog :: varchar,
+    domain_schema :: varchar,
+    domain_name :: varchar,
+    udt_catalog :: varchar,
+    udt_schema :: varchar,
+    udt_name :: varchar,
+    scope_catalog :: varchar,
+    scope_schema :: varchar,
+    scope_name :: varchar,
+    maximum_cardinality  :: int,
+    dtd_identifier :: varchar,
+    is_self_referencing :: varchar
+FROM
+    information_schema.columns;
