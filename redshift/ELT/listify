@@ -1,1 +1,130 @@
+create or replace procedure listify(
+    argSourceSchema TEXT,
+    argSourceTable TEXT,
+    argTargetSchema TEXT,
+    argTargetTable TEXT,
+    argNearColumnName TEXT
+)
+AS $$
+DECLARE
+    -- argNearColumnName           TEXT;
+    -- argSourceSchema             TEXT;
+    -- argSourceTable              TEXT;
+    -- argTargetSchema             TEXT;
+    -- argTargetTable              TEXT;
+    curSchemaRow                RECORD;
+    curColumnNameRows           RECORD;
+    curColumnName               INT;
+    varColumnNameRange          INT;
+    varSuperColumnList          VARCHAR(1000);
+    varCurrentColumn            VARCHAR(1000);
+    varQueryPrefix              VARCHAR(1000);
+    varTargetNonSuperColumn     VARCHAR(1000);
 
+BEGIN
+    -- argSourceSchema = 'public';
+    -- argNearColumnName = 'total_spending';
+    -- argSourceTable = 'nesting_test_source';
+    -- argTargetSchema = 'public';
+    -- argTargetTable = 'nesting_test_target';
+
+    /*creates a temp table with the names of all the columns in the source table
+    this is needed because the information_schema system tables aren't available to worker nodes*/
+    DROP TABLE IF EXISTS tmp_listify_info_schema;
+    create TEMP TABLE tmp_listify_info_schema (
+                                        table_schema TEXT,
+                                        table_name TEXT,
+                                        column_name TEXT,
+                                        ordinal_position int,
+                                        datatype TEXT
+                                        );
+    /*populates the temp table we just created*/
+    for curSchemaRow in SELECT 
+                    table_schema :: TEXT, 
+                    table_name  :: TEXT, 
+                    column_name  :: TEXT, 
+                    ordinal_position :: int, 
+                    data_type  :: TEXT
+                    FROM 
+                        information_schema.columns 
+                    WHERE 
+                        table_schema = argSourceSchema
+                        AND table_name = argSourceTable
+                    ORDER BY
+                        ordinal_position
+    LOOP
+        INSERT INTO tmp_listify_info_schema VALUES (curSchemaRow.table_schema, curSchemaRow.table_name, curSchemaRow.column_name, curSchemaRow.ordinal_position, curSchemaRow.data_type);
+    END LOOP;
+
+    /*creates a temp table that will hold a row for every column we iterate through.
+    Used to exclude from the temp table with all of the column names so that we can 
+    create a list of columns that are not touched by this procedure*/
+    DROP TABLE IF EXISTS tmp_nest_columns_list;
+    CREATE TEMP TABLE tmp_nest_columns_list (nest_column_name TEXT);
+
+    DROP TABLE IF EXISTS tmp_column_name_counter;
+    EXECUTE
+    'CREATE TEMP TABLE tmp_column_name_counter AS '
+    ||'SELECT row_number() OVER(ORDER BY column_name) as row_id,  column_name '
+    ||'FROM tmp_listify_info_schema '
+    ||'WHERE column_name LIKE '||''''||'%'||argNearColumnName||'%'||''''||';'
+    ;
+
+
+    /*this lists the column names that will be nested*/
+    INSERT INTO tmp_nest_columns_list SELECT column_name FROM tmp_column_name_counter ORDER BY column_name;
+
+    /*sets the range variable to the number of records in the temp table created above.
+    This is used for the loop*/
+    SELECT COUNT(1) INTO varColumnNameRange FROM tmp_column_name_counter;
+
+
+    /*Loops through each near match of the column name and creates a list of column names and values*/
+    curColumnName = 1;
+    varSuperColumnList = '';
+    varCurrentColumn = '';
+    WHILE curColumnName <= varColumnNameRange LOOP
+        SELECT INTO varCurrentColumn column_name FROM tmp_column_name_counter WHERE row_id = curColumnName;
+        IF curColumnName = 1 THEN
+           varSuperColumnList = ''''||'||'||''''||varCurrentColumn||''''||'||'||''''||':'||''''||'||'||varCurrentColumn;
+
+        ELSE
+           varSuperColumnList = varSuperColumnList||'||'||''''||', '||''''||'||'||''''||varCurrentColumn||''''||'||'||''''||':'||''''||'||'||varCurrentColumn;
+        END IF;
+        curColumnName = curColumnName + 1;
+    END LOOP;
+
+    /*this section gets the list of columns that are not going to be nested*/
+    DROP TABLE IF EXISTS tmp_include_columns_list;
+    CREATE TEMP TABLE tmp_include_columns_list AS
+            SELECT column_name FROM tmp_listify_info_schema
+            EXCEPT
+            SELECT nest_column_name FROM tmp_nest_columns_list;
+    /*loops through the column names minus the names of the iterated columns
+    so that we can concatenate the column names for the SELECT statement used later*/
+    varTargetNonSuperColumn='';
+    for curColumnNameRows in
+        SELECT column_name FROM tmp_include_columns_list ORDER BY column_name
+    LOOP
+        varTargetNonSuperColumn=varTargetNonSuperColumn||curColumnNameRows.column_name||', ';
+    END LOOP;
+
+    /*determines whether the target table exists and creates an INSERT statement
+    if it does and a CREATE TABLE statement if it does not*/
+    SELECT INTO varQueryPrefix
+        CASE WHEN EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema=argTargetSchema AND table_name=argTargetTable)
+            THEN 'INSERT INTO '||argTargetSchema||'.'||argTargetTable||' '
+            ELSE 'CREATE TABLE '||argTargetSchema||'.'||argTargetTable||' AS '
+            END
+    ;
+
+    /*runs the final query*/
+    EXECUTE
+    varQueryPrefix||
+    'SELECT '||varTargetNonSuperColumn
+                    ||'CAST('||''''||'{'||varSuperColumnList||'||'||''''||'}'||''''||' AS SUPER) AS '||argNearColumnName||' '
+                    ||'FROM '||argSourceSchema||'.'||argSourceTable||';'
+    ;
+
+END;
+$$ LANGUAGE plpgsql;
