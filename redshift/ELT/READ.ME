@@ -1,1 +1,9 @@
+This has ELT functions built with stored procedures for Redshift:
 
+
+listify - takes repeating columns (eg total_spend_2020, total_spend_2021, total_spend_2022) and nests them into a SUPER datatype
+    argSourceSchema TEXT - the schema of the source table
+    argSourceTable TEXT - the source table name
+    argTargetSchema TEXT - the schema where you want the proc to write the data
+    argTargetTable TEXT - the table where you want the proc to write the data
+    argNearColumnName TEXT - the column name that repeats. Use only the base of the name and not the numbers/letters that increment it (eg write 'total_spend', not 'total_spend_2020')
