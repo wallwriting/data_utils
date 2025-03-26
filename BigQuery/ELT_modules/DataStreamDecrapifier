@@ -8,7 +8,6 @@ CREATE OR REPLACE PROCEDURE test.sp_datastreamdecrapifier
 (
     varSourceProject STRING, --source project name
     varSourceRegion STRING, --source region, needed for the biglake table creation
-    varSourceDataset STRING, --source dataset
     varConnection STRING, --source connection, needed for the biglake table. Needs to be created beforehand
     varFormat STRING, --format of the files (json, avro, csv, ect.)
     varSourceUriBase ARRAY<STRING>, --An array of the source uris to be used. Needs a filename or wildcard at the end
@@ -23,7 +22,6 @@ BEGIN
 /*Matches the parameters in the procedure. Use this to test the script*/
   -- DECLARE varSourceProject STRING;
   -- DECLARE varSourceRegion STRING;
-  -- DECLARE varSourceDataset STRING;
   -- DECLARE varConnection STRING;
   -- DECLARE varFormat STRING;
   -- DECLARE varSourceUriBase ARRAY<STRING>;
