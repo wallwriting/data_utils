@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE test.sp_upsert
+CREATE OR REPLACE PROCEDURE test.sp_upserter
 (
   source_project STRING, 
   source_dataset STRING, 
