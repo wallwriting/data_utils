@@ -1,8 +1,7 @@
-CREATE OR REPLACE PROCEDURE test.sp_datastreamdecrapifier_incremental
+CREATE OR REPLACE PROCEDURE test.sp_internalizer_incremental
 (
     argSourceProject STRING, --source project name
     argSourceRegion STRING, --source region, needed for the biglake table creation
-    argSourceDataset STRING, --source dataset
     argConnection STRING, --source connection, needed for the biglake table. Needs to be created beforehand
     argFormat STRING, --format of the files (json, avro, csv, ect.)
     argSourceUriBase STRING, --the table level uri (don't include any subdirectories below table level). For example 'gs://bucket/table'
@@ -23,7 +22,6 @@ to keep up performance and load the data into a copy of the full source data (ie
 -- /*Matches the parameters in the procedure. Use this to test the script*/
 --   DECLARE argSourceProject STRING;
 --   DECLARE argSourceRegion STRING;
---   DECLARE argSourceDataset STRING;
 --   DECLARE argConnection STRING;
 --   DECLARE argFormat STRING;
 --   DECLARE argSourceUriBase STRING;
@@ -60,7 +58,6 @@ to keep up performance and load the data into a copy of the full source data (ie
 -- /*This sets the values for the arguments. Use this to test the script*/
 --   SET argSourceProject = 'MY-PROJECT';
 --   SET argSourceRegion = 'MY-REGION';
---   SET argSourceDataset = 'MY-SOURCE';
 --   SET argConnection = 'MY-CONNECTION-STRING';
 --   SET argFormat = 'MY-DATA-FILE-FORMAT';
 --   SET argSourceUriBase = 'gs://MY-DIRECTORY/-MY-TABLE-SUB-DIRECTORY';
@@ -279,7 +276,7 @@ to keep up performance and load the data into a copy of the full source data (ie
 
     /*creates a temp table that unnests the array of primary key columns
     and assigns a row number to each record*/
-    CREATE TEMP TABLE tmp_column_list AS
+    CREATE OR REPLACE TEMP TABLE tmp_column_list AS
     SELECT row_number() OVER () as row_id, column_name
     FROM UNNEST(argPrimaryKeyArray) column_name
     ;
