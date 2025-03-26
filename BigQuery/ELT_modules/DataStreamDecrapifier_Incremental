@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE test.sp_internalizer_incremental
+CREATE OR REPLACE PROCEDURE test.sp_datastreamdecrapifier_incremental
 (
     argSourceProject STRING, --source project name
     argSourceRegion STRING, --source region, needed for the biglake table creation
