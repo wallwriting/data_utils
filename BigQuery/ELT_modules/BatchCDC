@@ -77,7 +77,7 @@ BEGIN
 
   /*This is an optional section that creates the metadata table automatically if it doesn't exist with a timestamp that goes back 10 years*/
   -- EXECUTE IMMEDIATE
-  -- """ CREATE TABLE IF NOT EXISTS """ || varMetaDataset || """.""" || varMetaTable || """AS""" 
+  -- """ CREATE TABLE IF NOT EXISTS """ || varMetaDataset || """.""" || varMetaTable || """ AS """ 
 	-- || """SELECT 1 AS """ || varMetaKey || """, """ 
 	-- || """TIMESTAMP_ADD(TIMESTAMP_TRUNC(CURRENT_TIMESTAMP(), DAY), INTERVAL -3650 DAY) AS """ || varMetaTimestampCol || """;"""
   -- ;
