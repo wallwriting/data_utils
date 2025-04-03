@@ -153,6 +153,10 @@ DataStreamDecrapifier_incremental
       argDatePart STRING, --the part of the date you want to increment by. This can only be DAY, HOUR, or MINUTE
       argGoBackInterval INT64 --how far back you want the datapart to go back. For example if date part is DAY, and this value is 3, that means you want it to go back three days from today.
 
+DatastreamDecrapifier_converted
+  - Same as DatastreamDecrapifier_incremental except it converts the source_timestamp from integer to timestamp. In some cases BigQuery will fail to convert the timestamp milliseconds from integer to a timestamp. This will force it to covert.
+- NOTE THAT THIS VERSION ALSO DROPS THE EXTERNAL TABLE
+
 unJSONer
   - flattens any json columns in a table, placing each into their own tables with schema
   - creates tables if they don't exist, inserts into tables if they do--this might need to be changed so that it always drops and recreates the table
