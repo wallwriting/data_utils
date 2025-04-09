@@ -1,0 +1,18 @@
+CREATE FUNCTION test.weekday_diff(argFromDt date, argToDt date)
+RETURNS INT64
+AS (
+
+
+(SELECT
+  CASE WHEN weekdays < 0 THEN 0
+    ELSE weekdays END AS weekdays
+FROM
+  (
+  SELECT
+    DATE_DIFF(argToDt, argFromDt, DAY)  -
+      DATE_DIFF(argToDt, argFromDt, WEEK(SATURDAY)) -
+        DATE_DIFF(argToDt, argFromDt, WEEK(SUNDAY)) -
+          IF(EXTRACT(DAYOFWEEK FROM argFromDt) IN (1,7), 1, 0) AS `weekdays`
+  ) a 
+)
+);
