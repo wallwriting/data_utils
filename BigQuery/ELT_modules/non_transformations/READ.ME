@@ -27,3 +27,11 @@ TRUNCATor
   Arguments:
     varDataset STRING
     varTableArray ARRAY<STRING>
+
+
+weekday_diff
+  Gets a date_diff but only includes weekdays.
+  Because of the way we're getting the diff, any range that starts on a weekend will only start on the first weeday afterwards. So a diff of a Sunday start date and a Monday end date will be a diff of 0.
+Arguments:
+  argFromDt - the start date of the range
+  argToDt - the end date of the range
