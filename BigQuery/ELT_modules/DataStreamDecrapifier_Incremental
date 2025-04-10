@@ -360,6 +360,12 @@ to keep up performance and load the data into a copy of the full source data (ie
     /**********************************************************************************************************************************************/
     /***************************************************END THE INTERNAL TABLE SECCTION************************************************************/
     /**********************************************************************************************************************************************/
+
+/*drops the external table that was created in order to keep the dataset tidy. Remove this if you need to keep the external table for analysis*/
+    EXECUTE IMMEDIATE
+    """DROP TABLE IF EXISTS """ || argTargetDataset || """.""" || argTargetExternalTable || """;"""
+    ;
+
   END IF;
 
 END
