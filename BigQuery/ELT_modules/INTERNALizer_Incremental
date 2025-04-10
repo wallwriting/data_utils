@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE dpa.sp_internalizer_incremental(
+CREATE OR REPLACE PROCEDURE test.sp_internalizer_incremental(
   argSourceProject STRING, --bucket project name 
   argSourceRegion STRING, --the name of the region of the bucket 
   argConnection STRING, --the connection string (must be created beforehand)
