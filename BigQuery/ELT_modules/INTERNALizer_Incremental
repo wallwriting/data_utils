@@ -1,19 +1,14 @@
-CREATE OR REPLACE PROCEDURE test.sp_datastreamdecrapifier_incremental
-(
-    argSourceProject STRING, --source project name
-    argSourceRegion STRING, --source region, needed for the biglake table creation
-    argConnection STRING, --source connection, needed for the biglake table. Needs to be created beforehand
-    argFormat STRING, --format of the files (json, avro, csv, ect.)
-    argSourceUriBase STRING, --the table level uri (don't include any subdirectories below table level). For example 'gs://bucket/table'
-    argTargetDataset STRING, --dataset where the external and internal target tables will exist
-    argTargetExternalTable STRING, --name for the external table you want to create
-    argTargetInternalTable STRING, --name for the internal table you want to load data into
-    argPrimaryKeyArray ARRAY<STRING>, --the logical pk of the external table. Used for upserts
-    argDatePart STRING, --the part of the date you want to increment by. This can only be DAY, HOUR, or MINUTE
-    argGoBackInterval INT64 --how far back you want the datapart to go back. For example if date part is DAY, and this value is 3, that means you want it to go back three days from today.
-)
-
-
+CREATE OR REPLACE PROCEDURE test.sp_internalizer_incremental(
+  argSourceProject STRING, --the name of the project the source bucket is in
+  argSourceRegion STRING, --the name of the region the source bucket is in
+  argConnection STRING,  --the connection string to be used (must be created beforehand)
+  argFormat STRING, --the format of the data in lowercase ('avro', 'csv' etc )
+  argSourceUriBase STRING, --the uri up to the table level (ie no partitions) without a trailing slash or wildcard
+  argTargetDataset STRING, --the dataset that the target table should be created in
+  argTargetExternalTable STRING, --the name of the external table to be created
+  argTargetInternalTable STRING, argPrimaryKeyArray ARRAY<STRING>,  --the name of the interal version of the table (will create if it doesn't exist)
+  argDatePart STRING, --the part of the date that it will use to increment (YEAR, MONTH, DAY, HOUR, etc)
+  argGoBackInterval INT64) --based on the datepart, how many units of the the datepart to go back (eg datepart="DAY" and interval = 10 means go back 10 days)
 BEGIN
 /*This proc is solely to work around the issues of how datastream creates its directory structure when replicates into GCS. The directory doesn't allow for partitioned external tables, which causes performance issues at scale. This allows devs to create an external table just on a subdirectory or file
 to keep up performance and load the data into a copy of the full source data (ie all history) into an internal table. This allows for the versitility of using GCS as the data lake (otherwise you could replicate directly into BigQuery), while maintaining overall performance*/
@@ -328,44 +323,65 @@ to keep up performance and load the data into a copy of the full source data (ie
       THEN EXECUTE IMMEDIATE
       """ CREATE OR REPLACE TABLE """ 
       || argTargetDataset || """.""" || argTargetInternalTable || """ AS """
-      || """ SELECT payload.*, source_metadata.*, source_timestamp FROM """ 
+      || """ SELECT payload.*, source_metadata.*, TIMESTAMP_MILLIS(source_timestamp) AS source_timestamp FROM """ 
       || argTargetDataset || """.""" || argTargetExternalTable || """;"""
       ;
       /*if the table doesn't exist, performs an upsert. The merge function is difficult to use here because of some syntax limiations with the struct datatype*/
       ELSE 
-        BEGIN TRANSACTION;
-        EXECUTE IMMEDIATE
-        """DELETE FROM """ || argTargetDataset || """.""" || argTargetInternalTable || """ mx """
-        || """WHERE EXISTS (SELECT 1 FROM """ 
-        || argTargetDataset || """.""" || argTargetExternalTable || """ s WHERE """ || varJoinSyntax || """); """
-        ;
-        EXECUTE IMMEDIATE
-        """ INSERT INTO """ || argTargetDataset || """.""" || argTargetInternalTable 
-        || """      SELECT s.payload.*, s.source_metadata.*, s.source_timestamp """
-        || """      FROM """ || argTargetDataset || """.""" || argTargetExternalTable || """ s """
-        || """      JOIN """
-        || """        ( """
-        || """          SELECT """
-        ||            varKeyColumnList
-        || """            , MAX(source_timestamp) as source_timestamp """
-        || """          FROM """
-        ||            argTargetDataset || """.""" || argTargetExternalTable
-        || """          GROUP BY """
-        ||            varKeyColumnList
-        || """        ) mx """
-        || """          ON """ || varJoinSyntax || """ AND s.source_timestamp = mx.source_timestamp; """ 
-        ;
-        COMMIT TRANSACTION;
-    END IF;
+            BEGIN TRANSACTION;
+            EXECUTE IMMEDIATE
+            """DELETE FROM """ || argTargetDataset || """.""" || argTargetInternalTable || """ mx """
+            || """WHERE EXISTS (SELECT 1 FROM """ 
+            || argTargetDataset || """.""" || argTargetExternalTable || """ s WHERE """ || varJoinSyntax || """); """
+            ;
+            
+              BEGIN
+                EXECUTE IMMEDIATE
+                /*first tries to convert a milliseconds integer into a timestamp*/
+                """ INSERT INTO """ || argTargetDataset || """.""" || argTargetInternalTable 
+                || """      SELECT s.payload.*, s.source_metadata.*, TIMESTAMP_MILLIS(s.source_timestamp) AS source_timestamp """
+                || """      FROM """ || argTargetDataset || """.""" || argTargetExternalTable || """ s """
+                || """      JOIN """
+                || """        ( """
+                || """          SELECT """
+                ||            varKeyColumnList
+                || """            , MAX(source_timestamp) as source_timestamp """
+                || """          FROM """
+                ||            argTargetDataset || """.""" || argTargetExternalTable
+                || """          GROUP BY """
+                ||            varKeyColumnList
+                || """        ) mx """
+                || """          ON """ || varJoinSyntax || """ AND s.source_timestamp = mx.source_timestamp; """ 
+                ;
+                /*If this errors, it assumes it's due to the source_timestamp not being in millis and tries to do a straight insert*/
+                EXCEPTION WHEN ERROR THEN
+                  EXECUTE IMMEDIATE
+                  """ INSERT INTO """ || argTargetDataset || """.""" || argTargetInternalTable 
+                  || """      SELECT s.payload.*, s.source_metadata.*, s.source_timestamp """
+                  || """      FROM """ || argTargetDataset || """.""" || argTargetExternalTable || """ s """
+                  || """      JOIN """
+                  || """        ( """
+                  || """          SELECT """
+                  ||            varKeyColumnList
+                  || """            , MAX(source_timestamp) as source_timestamp """
+                  || """          FROM """
+                  ||            argTargetDataset || """.""" || argTargetExternalTable
+                  || """          GROUP BY """
+                  ||            varKeyColumnList
+                  || """        ) mx """
+                  || """          ON """ || varJoinSyntax || """ AND s.source_timestamp = mx.source_timestamp; """ 
+                  ;
+              END;
+            COMMIT TRANSACTION;
+        END IF;
     /**********************************************************************************************************************************************/
     /***************************************************END THE INTERNAL TABLE SECCTION************************************************************/
     /**********************************************************************************************************************************************/
 
-/*drops the external table that was created in order to keep the dataset tidy. Remove this if you need to keep the external table for analysis*/
+    /*drops the external table that was created in order to keep the dataset tidy. Remove this if you need to keep the external table for analysis*/
     EXECUTE IMMEDIATE
     """DROP TABLE IF EXISTS """ || argTargetDataset || """.""" || argTargetExternalTable || """;"""
     ;
-
   END IF;
 
-END
+END;
