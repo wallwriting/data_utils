@@ -1,162 +1,400 @@
-/*This proc is solely to work around the issues of how datastream creates its directory structure
-when replicates into GCS. The directory doesn't allow for partitioned external tables, which causes
-performance issues at scale. This allows devs to create an external table just on a subdirectory or file
-to keep up performance and load the data into a copy of the full source data (ie all history) into 
-an internal table. This allows for the versitility of using GCS as the data lake (otherwise you could replicate directly into BigQuery), while maintaining overall performance*/
-
-CREATE OR REPLACE PROCEDURE test.sp_internalizer
-(
-    argSourceProject STRING, --source project name
-    argSourceRegion STRING, --source region, needed for the biglake table creation
-    argConnection STRING, --source connection, needed for the biglake table. Needs to be created beforehand
-    argFormat STRING, --format of the files (json, avro, csv, ect.)
-    argSourceUriBase ARRAY<STRING>, --An array of the source uris to be used. Needs a filename or wildcard at the end
-    argTargetDataset STRING, --dataset where the external and internal target tables will exist
-    argTargetExternalTable STRING, --name for the external table you want to create
-    argTargetInternalTable STRING, --name for the internal table you want to load data into
-    argPrimaryKeyArray ARRAY<STRING> --the logical pk of the external table, used for upserts
-)
-
+CREATE OR REPLACE PROCEDURE dpa.sp_internalizer_incremental(
+  argSourceProject STRING, --bucket project name 
+  argSourceRegion STRING, --the name of the region of the bucket 
+  argConnection STRING, --the connection string (must be created beforehand)
+  argFormat STRING, --the format of the data in lowercase ('avro', 'csv', etc)
+  argSourceUriBase STRING, --the uri of the bucket down to the table level
+  argTargetDataset STRING, --the dataset where the tables are to be created
+  argTargetExternalTable STRING, --the name of the external table to be created
+  argTargetInternalTable STRING, --the name of the internal table to load the data (will create if doesn't exist)
+  argPrimaryKeyArray ARRAY<STRING>,  --the primary key columns (enclose in brackets)
+  argDatePart STRING, --the part of the date to use to increment (YEAR, MONTH, DAY, etc.)
+  argGoBackInterval INT64 --the number of units of the datepart to go back (eg datepart=DAY and goback=10 means go back 10 days from today)
+  )
 BEGIN
+/*This proc is solely to work around the issues of how datastream creates its directory structure when replicates into GCS. The directory doesn't allow for partitioned external tables, which causes performance issues at scale. This allows devs to create an external table just on a subdirectory or file
+to keep up performance and load the data into a copy of the full source data (ie all history) into an internal table. This allows for the versitility of using GCS as the data lake (otherwise you could replicate directly into BigQuery), while maintaining overall performance*/
 
-/*Matches the parameters in the procedure. Use this to test the script*/
-  -- DECLARE argSourceProject STRING;
-  -- DECLARE argSourceRegion STRING;
-  -- DECLARE argConnection STRING;
-  -- DECLARE argFormat STRING;
-  -- DECLARE argSourceUriBase ARRAY<STRING>;
-  -- DECLARE argTargetDataset STRING;
-  -- DECLARE argTargetExternalTable STRING;
-  -- DECLARE argTargetInternalTable STRING;
-  -- DECLARE argPrimaryKeyArray ARRAY<STRING>;
 
-  DECLARE varSourceUriModified STRING;
-  DECLARE varUriLength INT64;
+-- /*Matches the parameters in the procedure. Use this to test the script*/
+--   DECLARE argSourceProject STRING;
+--   DECLARE argSourceRegion STRING;
+--   DECLARE argConnection STRING;
+--   DECLARE argFormat STRING;
+--   DECLARE argSourceUriBase STRING;
+--   DECLARE argTargetDataset STRING;
+--   DECLARE argTargetExternalTable STRING;
+--   DECLARE argTargetInternalTable STRING;
+--   DECLARE argPrimaryKeyArray ARRAY<STRING>;
+--   DECLARE argDatePart STRING;
+--   DECLARE argGoBackInterval INT64;
+-- /*end section*/
+
+  DECLARE varMaxTs TIMESTAMP;
+  DECLARE varMinTs TIMESTAMP;
+  DECLARE varGoBackString STRING;
   DECLARE varRange INT64;
   DECLARE varCounter INT64;
+  DECLARE varUriLengthInteger INT64;
+  DECLARE varUriListString STRING;
+  DECLARE varCurrentYear STRING;
+  DECLARE varCurrentMonth STRING;
+  DECLARE varCurrentDay STRING;
+  DECLARE varCurrentHour STRING;
+  DECLARE varCurrentMinute STRING;
+  DECLARE varCurrentInterval STRING;
+  DECLARE varCurrentUriSuffix STRING;
+  DECLARE varCurrentUriFull STRING;
+
+  DECLARE varSourceUriModified STRING;
   DECLARE varCurrentColumn STRING;
   DECLARE varJoinSyntax STRING;
   DECLARE varStringLength INT64;
   DECLARE varKeyColumnList STRING;
 
-  /**************************************************************************/
-  /******************THIS SECTION WILL CREATE THE JOIN SYNTAX FOR************/ 
-  /******************THE MERGE STATEMENT THAT WILL BE USED LATER*************/
-  /**************************************************************************/
-
-  /*creates a temp table that unnests the array of primary key columns
-  and assigns a row number to each record*/
-  CREATE OR REPLACE TEMP TABLE tmp_column_list AS
-  SELECT row_number() OVER () as row_id, column_name
-  FROM UNNEST(argPrimaryKeyArray) column_name
-  ;
-
-  /*keeps appending the string with columns that will be joined together*/
-  SET varRange = (select count(1) FROM tmp_column_list);
-  SET varCounter = 1;
-  SET varJoinSyntax = '';
-  SET varKeyColumnList = '';
-
-  WHILE varCounter <= varRange DO
-    SET varCurrentColumn = (SELECT column_name FROM tmp_column_list WHERE row_id = varCounter);
-    SET varJoinSyntax = varJoinSyntax || """ s.payload.""" || varCurrentColumn || """ = mx.""" || varCurrentColumn || """ AND""";
-    SET varKeyColumnList = varKeyColumnList || """ payload.""" || varCurrentColumn || """, """;
-    SET varCounter = varCounter + 1;
-  END WHILE;
-
-  /*trims off the last AND*/
-  SET varStringLength = (SELECT LENGTH(varJoinSyntax));
-  SET varJoinSyntax = (SELECT LEFT(varJoinSyntax, varStringLength - 3));
-
-  /*trims off the last comma*/
-  SET varStringLength = (SELECT LENGTH(varKeyColumnList));
-  SET varKeyColumnList = (SELECT LEFT(varKeyColumnList, varStringLength - 2));
+-- /*This sets the values for the arguments. Use this to test the script*/
+--   SET argSourceProject = 'MY-PROJECT';
+--   SET argSourceRegion = 'MY-REGION';
+--   SET argConnection = 'MY-CONNECTION-STRING';
+--   SET argFormat = 'MY-DATA-FILE-FORMAT';
+--   SET argSourceUriBase = 'gs://MY-DIRECTORY/-MY-TABLE-SUB-DIRECTORY';
+--   SET argTargetDataset = 'MY-TARGET-DATASET';
+--   SET argTargetExternalTable = 'ext_MY_TABLE_NAME';
+--   SET argTargetInternalTable = 'src_MY_TABLE_NAME';
+--   SET argPrimaryKeyArray = ['MY_KEY_COLUMN_1', 'MY_KEY_COLUMN_2'];
+--   SET argDatePart = 'MY-DATEPART';
+--   SET argGoBackInterval = MY-INTEGER;
+-- /*end section*/
 
 
-  /**************************************************************************/
-  /*************************END JOIN SYNTAX SECTION**************************/
-  /**************************************************************************/
+  /**********************************************************/
+  /******formats the uri based on wildcards and slashes******/
+  /**********************************************************/
+  SET varUriLengthInteger = (SELECT LENGTH(argSourceUriBase));
 
-
-  /*converts the array of uris into string in order to use it in the execute immediate statement later*/
-  SET varSourceUriModified = (select concat(""" ['""" || array_to_string(argSourceUriBase, """', '""") || """'] """));
-
-  /*creates the external table*/
-  EXECUTE IMMEDIATE
-  """ CREATE OR REPLACE EXTERNAL TABLE """ || argTargetDataset || """.""" || argTargetExternalTable
-  || """  WITH CONNECTION `""" || argSourceProject || """`.`""" || argSourceRegion || """`.`""" || argConnection || """`"""
-  || """  OPTIONS ("""
-  || """    format = """ || argFormat || ""","""
-  || """    uris = """ || varSourceUriModified
-  || """    ); """
-  ;
-
-  /*checks if the target table already exists*/
-  EXECUTE IMMEDIATE
-  """CREATE OR REPLACE TEMP TABLE tmp_tablechecker AS """
-  || """SELECT COUNT(1) AS cnt FROM """ || argTargetDataset || """.__TABLES_SUMMARY__ WHERE table_id = '""" || argTargetInternalTable || """'; """
-  ;
-
-  /*creates a new table if it doesn't exist*/
-  IF (SELECT cnt FROM tmp_tablechecker) = 0
-    THEN EXECUTE IMMEDIATE
-    """ CREATE OR REPLACE TABLE """ 
-    || argTargetDataset || """.""" || argTargetInternalTable || """ AS """
-    || """ SELECT payload.*, source_metadata.*, source_timestamp FROM """ 
-    || argTargetDataset || """.""" || argTargetExternalTable || """;"""
-    ;
-    /*if the table doesn't exist, performs an upsert.
-    The merge function is difficult to use here 
-    because of some syntax limiations with the struct datatype*/
-    ELSE 
-      BEGIN TRANSACTION;
-      EXECUTE IMMEDIATE
-      """DELETE FROM """ || argTargetDataset || """.""" || argTargetInternalTable || """ mx """
-      || """WHERE EXISTS (SELECT 1 FROM """ 
-      || argTargetDataset || """.""" || argTargetExternalTable || """ s WHERE """ || varJoinSyntax || """); """
-      ;
-        BEGIN
-          /*first tries to convert a milliseconds integer into a timestamp*/
-          EXECUTE IMMEDIATE
-          """ INSERT INTO """ || argTargetDataset || """.""" || argTargetInternalTable 
-          || """      SELECT s.payload.*, s.source_metadata.*, TIMESTAMP_MILLIS(s.source_timestamp) AS source_timestamp """
-          || """      FROM """ || argTargetDataset || """.""" || argTargetInternalTable || """ s """
-          || """      JOIN """
-          || """        ( """
-          || """          SELECT """
-          ||            varKeyColumnList
-          || """            , MAX(source_timestamp) as source_timestamp """
-          || """          FROM """
-          ||            argTargetDataset || """.""" || argTargetInternalTable
-          || """          GROUP BY """
-          ||            varKeyColumnList
-          || """        ) mx """
-          || """          ON """ || varJoinSyntax || """ AND s.source_timestamp = mx.source_timestamp; """ 
-          ;
-          /*If this errors, it assumes it's due to the source_timestamp not being in millis and tries to do a straight insert*/
-          EXCEPTION WHEN ERROR THEN
-            EXECUTE IMMEDIATE
-            """ INSERT INTO """ || argTargetDataset || """.""" || argTargetInternalTable 
-            || """      SELECT s.payload.*, s.source_metadata.*, s.source_timestamp """
-            || """      FROM """ || argTargetDataset || """.""" || argTargetInternalTable || """ s """
-            || """      JOIN """
-            || """        ( """
-            || """          SELECT """
-            ||            varKeyColumnList
-            || """            , MAX(source_timestamp) as source_timestamp """
-            || """          FROM """
-            ||            argTargetDataset || """.""" || argTargetInternalTable
-            || """          GROUP BY """
-            ||            varKeyColumnList
-            || """        ) mx """
-            || """          ON """ || varJoinSyntax || """ AND s.source_timestamp = mx.source_timestamp; """ 
-            ;
-        END;
-      COMMIT TRANSACTION;
+  IF (SELECT RIGHT(argSourceUriBase, 2)) = '/*' THEN
+      SET argSourceUriBase = (SELECT LEFT(argSourceUriBase, varUriLengthInteger-1));
+    ELSEIF (SELECT RIGHT(argSourceUriBase, 1)) = '*' THEN
+      SET argSourceUriBase = (SELECT LEFT(argSourceUriBase, varUriLengthInteger-1) || '/');
+    ELSEIF (SELECT RIGHT(argSourceUriBase, 1)) != '/' THEN
+      SET argSourceUriBase = (SELECT argSourceUriBase || '/');
   END IF;
+  /**********************************************************/
+  /*********************END SECTION**************************/
+  /**********************************************************/
+
+
+
+  /*sets the variable to negative if it's positive*/
+  IF argGoBackInterval >= 1 THEN
+    SET argGoBackInterval = -1*argGoBackInterval;
+  END IF;
+
+
+  /*************************************************************/
+  /***gets max timestamp and casts it as timestamp and string***/
+  /*************************************************************/
+  SET varMaxTs = current_timestamp();
+  /*converts the timestamp to string to put into execute statements*/
+  SET varGoBackString = (SELECT CAST(argGoBackInterval AS STRING));
+  /*************************************************************/
+  /************************END SECTION**************************/
+  /*************************************************************/
+
+
+  /*************************************************************/
+  /***gets min timestamp and casts it as timestamp and string***/
+  /*************************************************************/
+  CREATE OR REPLACE TEMP TABLE tmp_min_ts (min_ts TIMESTAMP);
+  EXECUTE IMMEDIATE
+  """INSERT INTO tmp_min_ts """ ||
+  """SELECT CAST(TIMESTAMP_ADD('"""||varMaxTs||"""', INTERVAL """||varGoBackString||""" """||argDatePart||""") AS TIMESTAMP);"""
+  ;
+
+  SET varMinTs = (SELECT min_ts FROM tmp_min_ts);
+  /*************************************************************/
+  /************************END SECTION**************************/
+  /*************************************************************/
+
+
+
+
+
+
+  /***********************************************************************************************************************************************/
+  /*FINDS ALL VALID DATE SUBDIRECTORIES FOR THE TABLE BASED ON THE INCREMENT SPECIFIED IN THE PROC CALL, THEN CREATES AN EXTERNAL TABLE WITH THEM*/
+  /***********************************************************************************************************************************************/
+  SET varRange = argGoBackInterval;
+  SET varCounter = 0;
+  SET varUriListString = '[';
+  SET varCurrentUriSuffix = '';
+
+
+
+  WHILE varCounter >= varRange DO
+    SET varCurrentInterval = (SELECT CAST(varCounter AS STRING));
+    EXECUTE IMMEDIATE
+    """CREATE OR REPLACE TEMP TABLE tmp_uri_suffix AS """|| 
+    """SELECT """||
+              /*gets the year*/
+              """(CAST("""||
+                """EXTRACT(YEAR FROM """||
+                          """(TIMESTAMP_ADD('"""||varMaxTs||"""', INTERVAL """||varCurrentInterval||""" """||argDatePart||"""))"""||
+                        """)"""||
+                """AS STRING"""||
+                """)"""|| 
+            """) AS intermediate_year, """
+              /*gets the month*/
+              """(CAST("""||
+                """EXTRACT(MONTH FROM """||
+                          """(TIMESTAMP_ADD('"""||varMaxTs||"""', INTERVAL """||varCurrentInterval||""" """||argDatePart||"""))"""||
+                        """)"""||
+                """AS STRING"""||
+                """)"""|| 
+            """) AS intermediate_month, """
+              /*gets the day*/
+              """(CAST("""||
+                """EXTRACT(DAY FROM """||
+                          """(TIMESTAMP_ADD('"""||varMaxTs||"""', INTERVAL """||varCurrentInterval||""" """||argDatePart||"""))"""||
+                        """)"""||
+                """AS STRING"""||
+                """)"""|| 
+            """) AS intermediate_day, """
+              /*gets the hour*/
+              """(CAST("""||
+                """EXTRACT(HOUR FROM """||
+                          """(TIMESTAMP_ADD('"""||varMaxTs||"""', INTERVAL """||varCurrentInterval||""" """||argDatePart||"""))"""||
+                        """)"""||
+                """AS STRING"""||
+                """)"""|| 
+            """) AS intermediate_hour, """
+              /*gets the minute*/
+              """(CAST("""||
+                """EXTRACT(MINUTE FROM """||
+                          """(TIMESTAMP_ADD('"""||varMaxTs||"""', INTERVAL """||varCurrentInterval||""" """||argDatePart||"""))"""||
+                        """)"""||
+                """AS STRING"""||
+                """)"""|| 
+            """) AS intermediate_minute;"""
+    ;
+    /*sets variables for each date part and adds a leading zero if it's single digits*/
+    SET varCurrentYear = (SELECT intermediate_year FROM tmp_uri_suffix);
+    SET varCurrentMonth = ((SELECT intermediate_month FROM tmp_uri_suffix));
+    SET varCurrentDay = ((SELECT intermediate_day FROM tmp_uri_suffix));
+    SET varCurrentHour = ((SELECT intermediate_hour FROM tmp_uri_suffix));
+    SET varCurrentMinute = ((SELECT intermediate_minute FROM tmp_uri_suffix));
+    IF LENGTH(varCurrentYear) = 1 THEN
+      SET varCurrentYear = '0' || varCurrentYear;
+    END IF;
+    IF LENGTH(varCurrentMonth) = 1 THEN
+      SET varCurrentMonth = '0' || varCurrentMonth;
+    END IF;
+    IF LENGTH(varCurrentDay) = 1 THEN
+      SET varCurrentDay = '0' || varCurrentDay;
+    END IF;
+    IF LENGTH(varCurrentHour) = 1 THEN
+      SET varCurrentHour = '0' || varCurrentHour;
+    END IF;
+    IF LENGTH(varCurrentMinute) = 1 THEN
+      SET varCurrentMinute = '0' || varCurrentMinute;
+    END IF;
+    /*end leading zero section*/
+
+    /*gets the suffix of the uri string which is dependant on which date part the user selected*/
+    IF UPPER(argDatePart) = 'YEAR' THEN
+      SET varCurrentUriSuffix = varCurrentYear || """/""";
+    ELSEIF UPPER(argDatePart) = 'MONTH' THEN
+      SET varCurrentUriSuffix = varCurrentYear || """/""" || varCurrentMonth || """/""";
+    ELSEIF UPPER(argDatePart) = 'DAY' THEN
+      SET varCurrentUriSuffix = varCurrentYear || """/""" || varCurrentMonth || """/""" || varCurrentDay || """/""";
+    ELSEIF UPPER(argDatePart) = 'HOUR' THEN
+      SET varCurrentUriSuffix = varCurrentYear || """/""" || varCurrentMonth || """/""" || varCurrentDay || """/""" || varCurrentHour || """/""" ;
+    ELSEIF UPPER(argDatePart) = 'MINUTE' THEN
+      SET varCurrentUriSuffix = varCurrentYear || """/""" || varCurrentMonth || """/""" || varCurrentDay || """/""" || varCurrentHour || """/""" || varCurrentMinute || """/""";
+    ELSE SET varCurrentUriSuffix = '';
+    END IF;
+    /*end suffix section*/
+
+    /*concats full uri*/
+    SET varCurrentUriFull = """ '""" || argSourceUriBase ||  varCurrentUriSuffix || """*'""";
+
+    /*tries to creates the external table. This will error out if the uri doesn't exist
+    which will skip this uri and move on to the next one*/
+    BEGIN
+        EXECUTE IMMEDIATE
+        """ CREATE OR REPLACE EXTERNAL TABLE """ || argTargetDataset || """.""" || argTargetDataset||argTargetExternalTable||"""_deleteme"""
+        || """  WITH CONNECTION `""" || argSourceProject || """`.`""" || argSourceRegion || """`.`""" || argConnection || """`"""
+        || """  OPTIONS ("""
+        || """    format = """ || argFormat || ""","""
+        || """    uris = [""" || varCurrentUriFull || """]"""
+        || """    ); """
+        ;
+
+        SET varUriListString = varUriListString || varCurrentUriFull || """,""";
+      EXCEPTION WHEN ERROR THEN
+      SELECT @@error.message, @@error.statement_text;
+    END;
+    SET varCounter = varCounter - 1;
+  END WHILE;
+  /*end external table section*/
+
+  /*drops the external table created in the previous section*/
+  EXECUTE IMMEDIATE
+  """ DROP TABLE IF EXISTS """ || argTargetDataset || """.""" || argTargetDataset||argTargetExternalTable||"""_deleteme;"""
+  ;
+  /*end drop external table section*/
+
+  /*gets rid of the trailing comma and replaces it with a bracket*/
+  SET varUriLengthInteger = (SELECT LENGTH(varUriListString)-1);
+  SET varUriListString = (SELECT LEFT(varUriListString, varUriLengthInteger) || """]""");
+  /*end section*/
+
+  /*only runs if there is at least one valid uri*/
+  IF varUriListString != """]""" THEN
+    /*creates the external table for real*/
+    EXECUTE IMMEDIATE
+    """ CREATE OR REPLACE EXTERNAL TABLE """ || argTargetDataset || """.""" || argTargetExternalTable
+    || """  WITH CONNECTION `""" || argSourceProject || """`.`""" || argSourceRegion || """`.`""" || argConnection || """`"""
+    || """  OPTIONS ("""
+    || """    format = """ || argFormat || ""","""
+    || """    uris = """ || varUriListString
+    || """    ); """
+    ;
+    /*ends valid uri section*/
+    /***********************************************************************************************************************************************/
+    /******************************************************ENDS INCREMENT SECTION*******************************************************************/
+    /***********************************************************************************************************************************************/
+
+
+    /**************************************************************************/
+    /******************THIS SECTION WILL CREATE THE JOIN SYNTAX FOR************/ 
+    /******************THE MERGE STATEMENT THAT WILL BE USED LATER*************/
+    /**************************************************************************/
+
+    /*creates a temp table that unnests the array of primary key columns
+    and assigns a row number to each record*/
+    CREATE OR REPLACE TEMP TABLE tmp_column_list AS
+    SELECT row_number() OVER () as row_id, column_name
+    FROM UNNEST(argPrimaryKeyArray) column_name
+    ;
+
+    /*keeps appending the string with columns that will be joined together*/
+    SET varRange = (select count(1) FROM tmp_column_list);
+    SET varCounter = 1;
+    SET varJoinSyntax = '';
+    SET varKeyColumnList = '';
+
+    WHILE varCounter <= varRange DO
+      SET varCurrentColumn = (SELECT column_name FROM tmp_column_list WHERE row_id = varCounter);
+      SET varJoinSyntax = varJoinSyntax || """ s.payload.""" || varCurrentColumn || """ = mx.""" || varCurrentColumn || """ AND""";
+      SET varKeyColumnList = varKeyColumnList || """ payload.""" || varCurrentColumn || """, """;
+      SET varCounter = varCounter + 1;
+    END WHILE;
+
+    /*trims off the last AND*/
+    SET varStringLength = (SELECT LENGTH(varJoinSyntax));
+    SET varJoinSyntax = (SELECT LEFT(varJoinSyntax, varStringLength - 3));
+
+    /*trims off the last comma*/
+    SET varStringLength = (SELECT LENGTH(varKeyColumnList));
+    SET varKeyColumnList = (SELECT LEFT(varKeyColumnList, varStringLength - 2));
+
+
+    /**************************************************************************/
+    /*************************END JOIN SYNTAX SECTION**************************/
+    /**************************************************************************/
+
+
+
+
+
+
+
+    /**********************************************************************************************************************************************/
+    /*******************************************THIS SECTION LOADS DATA INTO THE INTERNAL TABLE****************************************************/
+    /**********************************************************************************************************************************************/
+
+    /*checks if the target table already exists*/
+    EXECUTE IMMEDIATE
+    """CREATE OR REPLACE TEMP TABLE tmp_tablechecker AS """
+    || """SELECT COUNT(1) AS cnt FROM """ || argTargetDataset || """.__TABLES_SUMMARY__ WHERE table_id = '""" || argTargetInternalTable || """'; """
+    ;
+
+    /*creates a new table if it doesn't exist*/
+    IF (SELECT cnt FROM tmp_tablechecker) = 0 THEN 
+      BEGIN
+        /*first tries to convert a milliseconds integer into a timestamp*/
+        EXECUTE IMMEDIATE
+        """ CREATE OR REPLACE TABLE """ 
+        || argTargetDataset || """.""" || argTargetInternalTable || """ AS """
+        || """ SELECT payload.*, source_metadata.*, TIMESTAMP_MILLIS(source_timestamp) AS source_timestamp FROM """ 
+        || argTargetDataset || """.""" || argTargetExternalTable || """;"""
+        ;
+
+        /*If this errors, it assumes it's due to the source_timestamp not being in millis and tries to do a straight insert*/
+        EXCEPTION WHEN ERROR THEN
+        EXECUTE IMMEDIATE
+        """ CREATE OR REPLACE TABLE """ 
+        || argTargetDataset || """.""" || argTargetInternalTable || """ AS """
+        || """ SELECT payload.*, source_metadata.*, source_timestamp FROM """ 
+        || argTargetDataset || """.""" || argTargetExternalTable || """;"""
+        ;
+      END;
+      /*if the table doesn't exist, performs an upsert. The merge function is difficult to use here because of some syntax limiations with the struct datatype*/
+      ELSE 
+            BEGIN TRANSACTION;
+            EXECUTE IMMEDIATE
+            """DELETE FROM """ || argTargetDataset || """.""" || argTargetInternalTable || """ mx """
+            || """WHERE EXISTS (SELECT 1 FROM """ 
+            || argTargetDataset || """.""" || argTargetExternalTable || """ s WHERE """ || varJoinSyntax || """); """
+            ;
+            
+              BEGIN
+                EXECUTE IMMEDIATE
+                """ INSERT INTO """ || argTargetDataset || """.""" || argTargetInternalTable 
+                || """      SELECT s.payload.*, s.source_metadata.*, TIMESTAMP_MILLIS(s.source_timestamp) AS source_timestamp """
+                || """      FROM """ || argTargetDataset || """.""" || argTargetExternalTable || """ s """
+                || """      JOIN """
+                || """        ( """
+                || """          SELECT """
+                ||            varKeyColumnList
+                || """            , MAX(source_timestamp) as source_timestamp """
+                || """          FROM """
+                ||            argTargetDataset || """.""" || argTargetExternalTable
+                || """          GROUP BY """
+                ||            varKeyColumnList
+                || """        ) mx """
+                || """          ON """ || varJoinSyntax || """ AND s.source_timestamp = mx.source_timestamp; """ 
+                ;
+                /*If this errors, it assumes it's due to the source_timestamp not being in millis and tries to do a straight insert*/
+                EXCEPTION WHEN ERROR THEN
+                  EXECUTE IMMEDIATE
+                  """ INSERT INTO """ || argTargetDataset || """.""" || argTargetInternalTable 
+                  || """      SELECT s.payload.*, s.source_metadata.*, s.source_timestamp """
+                  || """      FROM """ || argTargetDataset || """.""" || argTargetExternalTable || """ s """
+                  || """      JOIN """
+                  || """        ( """
+                  || """          SELECT """
+                  ||            varKeyColumnList
+                  || """            , MAX(source_timestamp) as source_timestamp """
+                  || """          FROM """
+                  ||            argTargetDataset || """.""" || argTargetExternalTable
+                  || """          GROUP BY """
+                  ||            varKeyColumnList
+                  || """        ) mx """
+                  || """          ON """ || varJoinSyntax || """ AND s.source_timestamp = mx.source_timestamp; """ 
+                  ;
+              END;
+            COMMIT TRANSACTION;
+        END IF;
+    /**********************************************************************************************************************************************/
+    /***************************************************END THE INTERNAL TABLE SECCTION************************************************************/
+    /**********************************************************************************************************************************************/
+
     /*drops the external table that was created in order to keep the dataset tidy. Remove this if you need to keep the external table for analysis*/
     EXECUTE IMMEDIATE
     """DROP TABLE IF EXISTS """ || argTargetDataset || """.""" || argTargetExternalTable || """;"""
     ;
+  END IF;
 
-END
+END;
