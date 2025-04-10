@@ -6,29 +6,29 @@ an internal table. This allows for the versitility of using GCS as the data lake
 
 CREATE OR REPLACE PROCEDURE test.sp_internalizer
 (
-    varSourceProject STRING, --source project name
-    varSourceRegion STRING, --source region, needed for the biglake table creation
-    varConnection STRING, --source connection, needed for the biglake table. Needs to be created beforehand
-    varFormat STRING, --format of the files (json, avro, csv, ect.)
-    varSourceUriBase ARRAY<STRING>, --An array of the source uris to be used. Needs a filename or wildcard at the end
-    varTargetDataset STRING, --dataset where the external and internal target tables will exist
-    varTargetExternalTable STRING, --name for the external table you want to create
-    varTargetInternalTable STRING, --name for the internal table you want to load data into
-    varPrimaryKeyArray ARRAY<STRING> --the logical pk of the external table, used for upserts
+    argSourceProject STRING, --source project name
+    argSourceRegion STRING, --source region, needed for the biglake table creation
+    argConnection STRING, --source connection, needed for the biglake table. Needs to be created beforehand
+    argFormat STRING, --format of the files (json, avro, csv, ect.)
+    argSourceUriBase ARRAY<STRING>, --An array of the source uris to be used. Needs a filename or wildcard at the end
+    argTargetDataset STRING, --dataset where the external and internal target tables will exist
+    argTargetExternalTable STRING, --name for the external table you want to create
+    argTargetInternalTable STRING, --name for the internal table you want to load data into
+    argPrimaryKeyArray ARRAY<STRING> --the logical pk of the external table, used for upserts
 )
 
 BEGIN
 
 /*Matches the parameters in the procedure. Use this to test the script*/
-  -- DECLARE varSourceProject STRING;
-  -- DECLARE varSourceRegion STRING;
-  -- DECLARE varConnection STRING;
-  -- DECLARE varFormat STRING;
-  -- DECLARE varSourceUriBase ARRAY<STRING>;
-  -- DECLARE varTargetDataset STRING;
-  -- DECLARE varTargetExternalTable STRING;
-  -- DECLARE varTargetInternalTable STRING;
-  -- DECLARE varPrimaryKeyArray ARRAY<STRING>;
+  -- DECLARE argSourceProject STRING;
+  -- DECLARE argSourceRegion STRING;
+  -- DECLARE argConnection STRING;
+  -- DECLARE argFormat STRING;
+  -- DECLARE argSourceUriBase ARRAY<STRING>;
+  -- DECLARE argTargetDataset STRING;
+  -- DECLARE argTargetExternalTable STRING;
+  -- DECLARE argTargetInternalTable STRING;
+  -- DECLARE argPrimaryKeyArray ARRAY<STRING>;
 
   DECLARE varSourceUriModified STRING;
   DECLARE varUriLength INT64;
@@ -48,7 +48,7 @@ BEGIN
   and assigns a row number to each record*/
   CREATE OR REPLACE TEMP TABLE tmp_column_list AS
   SELECT row_number() OVER () as row_id, column_name
-  FROM UNNEST(varPrimaryKeyArray) column_name
+  FROM UNNEST(argPrimaryKeyArray) column_name
   ;
 
   /*keeps appending the string with columns that will be joined together*/
@@ -79,14 +79,14 @@ BEGIN
 
 
   /*converts the array of uris into string in order to use it in the execute immediate statement later*/
-  SET varSourceUriModified = (select concat(""" ['""" || array_to_string(varSourceUriBase, """', '""") || """'] """));
+  SET varSourceUriModified = (select concat(""" ['""" || array_to_string(argSourceUriBase, """', '""") || """'] """));
 
   /*creates the external table*/
   EXECUTE IMMEDIATE
-  """ CREATE OR REPLACE EXTERNAL TABLE """ || varTargetDataset || """.""" || varTargetExternalTable
-  || """  WITH CONNECTION `""" || varSourceProject || """`.`""" || varSourceRegion || """`.`""" || varConnection || """`"""
+  """ CREATE OR REPLACE EXTERNAL TABLE """ || argTargetDataset || """.""" || argTargetExternalTable
+  || """  WITH CONNECTION `""" || argSourceProject || """`.`""" || argSourceRegion || """`.`""" || argConnection || """`"""
   || """  OPTIONS ("""
-  || """    format = """ || varFormat || ""","""
+  || """    format = """ || argFormat || ""","""
   || """    uris = """ || varSourceUriModified
   || """    ); """
   ;
@@ -94,48 +94,81 @@ BEGIN
   /*checks if the target table already exists*/
   EXECUTE IMMEDIATE
   """CREATE OR REPLACE TEMP TABLE tmp_tablechecker AS """
-  || """SELECT COUNT(1) AS cnt FROM """ || varTargetDataset || """.__TABLES_SUMMARY__ WHERE table_id = '""" || varTargetInternalTable || """'; """
+  || """SELECT COUNT(1) AS cnt FROM """ || argTargetDataset || """.__TABLES_SUMMARY__ WHERE table_id = '""" || argTargetInternalTable || """'; """
   ;
 
   /*creates a new table if it doesn't exist*/
-  IF (SELECT cnt FROM tmp_tablechecker) = 0
-    THEN EXECUTE IMMEDIATE
-    """ CREATE OR REPLACE TABLE """ 
-    || varTargetDataset || """.""" || varTargetInternalTable || """ AS """
-    || """ SELECT payload.*, source_metadata.*, source_timestamp FROM """ 
-    || varTargetDataset || """.""" || varTargetExternalTable || """;"""
-    ;
+  IF (SELECT cnt FROM tmp_tablechecker) = 0 THEN 
+    BEGIN
+      /*first tries to convert a milliseconds integer into a timestamp*/
+      EXECUTE IMMEDIATE
+      """ CREATE OR REPLACE TABLE """ 
+      || argTargetDataset || """.""" || argTargetInternalTable || """ AS """
+      || """ SELECT payload.*, source_metadata.*, TIMESTAMP_MILLIS(source_timestamp) AS source_timestamp FROM """ 
+      || argTargetDataset || """.""" || argTargetExternalTable || """;"""
+      ;
+
+      /*If this errors, it assumes it's due to the source_timestamp not being in millis and tries to do a straight insert*/
+      EXCEPTION WHEN ERROR THEN
+      EXECUTE IMMEDIATE
+      """ CREATE OR REPLACE TABLE """ 
+      || argTargetDataset || """.""" || argTargetInternalTable || """ AS """
+      || """ SELECT payload.*, source_metadata.*, source_timestamp FROM """ 
+      || argTargetDataset || """.""" || argTargetExternalTable || """;"""
+      ;
+    END;
     /*if the table doesn't exist, performs an upsert.
     The merge function is difficult to use here 
     because of some syntax limiations with the struct datatype*/
     ELSE 
       BEGIN TRANSACTION;
       EXECUTE IMMEDIATE
-      """DELETE FROM """ || varTargetDataset || """.""" || varTargetInternalTable || """ mx """
+      """DELETE FROM """ || argTargetDataset || """.""" || argTargetInternalTable || """ mx """
       || """WHERE EXISTS (SELECT 1 FROM """ 
-      || varTargetDataset || """.""" || varTargetExternalTable || """ s WHERE """ || varJoinSyntax || """); """
+      || argTargetDataset || """.""" || argTargetExternalTable || """ s WHERE """ || varJoinSyntax || """); """
       ;
-      EXECUTE IMMEDIATE
-      """ INSERT INTO """ || varTargetDataset || """.""" || varTargetInternalTable 
-      || """      SELECT s.payload.*, s.source_metadata.*, s.source_timestamp """
-      || """      FROM """ || varTargetDataset || """.""" || varTargetExternalTable || """ s """
-      || """      JOIN """
-      || """        ( """
-      || """          SELECT """
-      ||            varKeyColumnList
-      || """            , MAX(source_timestamp) as source_timestamp """
-      || """          FROM """
-      ||            varTargetDataset || """.""" || varTargetExternalTable
-      || """          GROUP BY """
-      ||            varKeyColumnList
-      || """        ) mx """
-      || """          ON """ || varJoinSyntax || """ AND s.source_timestamp = mx.source_timestamp; """ 
-      ;
+        BEGIN
+          /*first tries to convert a milliseconds integer into a timestamp*/
+          EXECUTE IMMEDIATE
+          """ INSERT INTO """ || argTargetDataset || """.""" || argTargetInternalTable 
+          || """      SELECT s.payload.*, s.source_metadata.*, TIMESTAMP_MILLIS(s.source_timestamp) AS source_timestamp """
+          || """      FROM """ || argTargetDataset || """.""" || argTargetInternalTable || """ s """
+          || """      JOIN """
+          || """        ( """
+          || """          SELECT """
+          ||            varKeyColumnList
+          || """            , MAX(source_timestamp) as source_timestamp """
+          || """          FROM """
+          ||            argTargetDataset || """.""" || argTargetInternalTable
+          || """          GROUP BY """
+          ||            varKeyColumnList
+          || """        ) mx """
+          || """          ON """ || varJoinSyntax || """ AND s.source_timestamp = mx.source_timestamp; """ 
+          ;
+          /*If this errors, it assumes it's due to the source_timestamp not being in millis and tries to do a straight insert*/
+          EXCEPTION WHEN ERROR THEN
+            EXECUTE IMMEDIATE
+            """ INSERT INTO """ || argTargetDataset || """.""" || argTargetInternalTable 
+            || """      SELECT s.payload.*, s.source_metadata.*, s.source_timestamp """
+            || """      FROM """ || argTargetDataset || """.""" || argTargetInternalTable || """ s """
+            || """      JOIN """
+            || """        ( """
+            || """          SELECT """
+            ||            varKeyColumnList
+            || """            , MAX(source_timestamp) as source_timestamp """
+            || """          FROM """
+            ||            argTargetDataset || """.""" || argTargetInternalTable
+            || """          GROUP BY """
+            ||            varKeyColumnList
+            || """        ) mx """
+            || """          ON """ || varJoinSyntax || """ AND s.source_timestamp = mx.source_timestamp; """ 
+            ;
+        END;
       COMMIT TRANSACTION;
   END IF;
     /*drops the external table that was created in order to keep the dataset tidy. Remove this if you need to keep the external table for analysis*/
     EXECUTE IMMEDIATE
-    """DROP TABLE IF EXISTS """ || varTargetDataset || """.""" || varTargetExternalTable || """;"""
+    """DROP TABLE IF EXISTS """ || argTargetDataset || """.""" || argTargetExternalTable || """;"""
     ;
 
 END
