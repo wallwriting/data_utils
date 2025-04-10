@@ -3,7 +3,7 @@ CREATE OR REPLACE PROCEDURE test.sp_viewfinder(
   sometimes seeing columns from datastream as struct datatypes rather than timestamps*/
   argSourceDataset          STRING,         --the dataset where the table is located
   argTableName              STRING,         --the name of the table
-  argExceptionColumnArray   ARRAY<STRING>,  --the list of any manual exceptions, use brackets
+  argExceptionColumnArray   ARRAY<STRING>,  --the list of any manual exceptions, use brackets. If none, pass blank value: ['']
   argTargetDataset          STRING,         --the dataset where the view will be created
   argTargetView             STRING          --the name of the view to be created
 )
