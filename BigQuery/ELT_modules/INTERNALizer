@@ -4,7 +4,7 @@ performance issues at scale. This allows devs to create an external table just o
 to keep up performance and load the data into a copy of the full source data (ie all history) into 
 an internal table. This allows for the versitility of using GCS as the data lake (otherwise you could replicate directly into BigQuery), while maintaining overall performance*/
 
-CREATE OR REPLACE PROCEDURE test.sp_datastreamdecrapifier
+CREATE OR REPLACE PROCEDURE test.sp_internalizer
 (
     varSourceProject STRING, --source project name
     varSourceRegion STRING, --source region, needed for the biglake table creation
