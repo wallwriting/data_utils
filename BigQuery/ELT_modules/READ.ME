@@ -121,7 +121,7 @@ NullDELETEr
     varNullColumnArray ARRAY<STRING>: An array of all of the columns that are to be checked for NULL values
 
 
-DataStreamDecrapifier
+INTERNALizer
   - This creates an external table based on a directory structure specified by the dev and loads the data into an internal table.
   - This proc is solely to work around the issues of how datastream creates its directory structure when replicates into GCS. The directory doesn't allow for partitioned external tables, which causes performance issues at scale. This allows devs to create an external table just on a subdirectory or file to keep up performance and load the data into a copy of the full source data (ie all history) into  an internal table. This allows for the versitility of using GCS as the data lake (otherwise you could replicate directly into BigQuery), while maintaining overall performance.
   - In cases where the same record has multiple database transactions in a batch, this script will pick the most recent one.
@@ -136,7 +136,7 @@ DataStreamDecrapifier
       varTargetInternalTable STRING: name for the internal table you want to load data into
       varPrimaryKeyArray ARRAY<STRING>: the logical pk of the external table, used for upserts
 
-DataStreamDecrapifier_incremental
+INTERNALizer_incremental
   - Same as above, except this version automatically picks up all valid uri subdirectories for a table going back a period of time you specify
   - This is used in cases where passing hard-coded arguments for the uri wouldn't be feasible.
   - Note there are two extra arguments here
@@ -153,9 +153,6 @@ DataStreamDecrapifier_incremental
       argDatePart STRING, --the part of the date you want to increment by. This can only be DAY, HOUR, or MINUTE
       argGoBackInterval INT64 --how far back you want the datapart to go back. For example if date part is DAY, and this value is 3, that means you want it to go back three days from today.
 
-DatastreamDecrapifier_converted
-  - Same as DatastreamDecrapifier_incremental except it converts the source_timestamp from integer to timestamp. In some cases BigQuery will fail to convert the timestamp milliseconds from integer to a timestamp. This will force it to covert.
-- NOTE THAT THIS VERSION ALSO DROPS THE EXTERNAL TABLE
 
 unJSONer
   - flattens any json columns in a table, placing each into their own tables with schema
