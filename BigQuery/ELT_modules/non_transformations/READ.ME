@@ -29,9 +29,20 @@ TRUNCATor
     varTableArray ARRAY<STRING>
 
 
-weekday_diff
+weekday_diff (UDF)
   Gets a date_diff but only includes weekdays.
   Because of the way we're getting the diff, any range that starts on a weekend will only start on the first weeday afterwards. So a diff of a Sunday start date and a Monday end date will be a diff of 0.
 Arguments:
   argFromDt - the start date of the range
   argToDt - the end date of the range
+
+
+viewfinder
+  Creates views that cast struct datatypes to timestamps
+  This is used in cases where bigquery sees a datastream-created timestamp column as a struct
+Arguments:
+  argSourceDataset          STRING,         --the dataset where the table is located
+  argTableName              STRING,         --the name of the table
+  argExceptionColumnArray   ARRAY<STRING>,  --the list of any manual exceptions, use brackets
+  argTargetDataset          STRING,         --the dataset where the view will be created
+  argTargetView             STRING          --the name of the view to be created
