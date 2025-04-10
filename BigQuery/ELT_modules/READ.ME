@@ -126,15 +126,15 @@ INTERNALizer
   - This proc is solely to work around the issues of how datastream creates its directory structure when replicates into GCS. The directory doesn't allow for partitioned external tables, which causes performance issues at scale. This allows devs to create an external table just on a subdirectory or file to keep up performance and load the data into a copy of the full source data (ie all history) into  an internal table. This allows for the versitility of using GCS as the data lake (otherwise you could replicate directly into BigQuery), while maintaining overall performance.
   - In cases where the same record has multiple database transactions in a batch, this script will pick the most recent one.
     Arguments:
-      varSourceProject STRING: source project name
-      varSourceRegion STRING: source region, needed for the biglake table creation
-      varConnection STRING: source connection, needed for the biglake table. Needs to be created beforehand
-      varFormat STRING: format of the files (json, avro, csv, ect.)
-      varSourceUriBase ARRAY<STRING>: An array of the source uris to be used. Needs a filename or wildcard at the end
-      varTargetDataset STRING: dataset where the external and internal target tables will exist
-      varTargetExternalTable STRING: name for the external table you want to create
-      varTargetInternalTable STRING: name for the internal table you want to load data into
-      varPrimaryKeyArray ARRAY<STRING>: the logical pk of the external table, used for upserts
+      argSourceProject STRING: source project name
+      argSourceRegion STRING: source region, needed for the biglake table creation
+      argConnection STRING: source connection, needed for the biglake table. Needs to be created beforehand
+      argFormat STRING: format of the files (json, avro, csv, ect.)
+      argSourceUriBase ARRAY<STRING>: An array of the source uris to be used. Needs a filename or wildcard at the end
+      argTargetDataset STRING: dataset where the external and internal target tables will exist
+      argTargetExternalTable STRING: name for the external table you want to create
+      argTargetInternalTable STRING: name for the internal table you want to load data into
+      argPrimaryKeyArray ARRAY<STRING>: the logical pk of the external table, used for upserts
 
 INTERNALizer_incremental
   - Same as above, except this version automatically picks up all valid uri subdirectories for a table going back a period of time you specify
