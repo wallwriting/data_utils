@@ -1,0 +1,136 @@
+CREATE OR REPLACE PROCEDURE test.sp_viewfinder(
+  /*This proc creates views that cast various struct fields into timestamps. This is due to BigQuery
+  sometimes seeing columns from datastream as struct datatypes rather than timestamps*/
+  argSourceDataset          STRING,         --the dataset where the table is located
+  argTableName              STRING,         --the name of the table
+  argExceptionColumnArray   ARRAY<STRING>,  --the list of any manual exceptions, use brackets
+  argTargetDataset          STRING,         --the dataset where the view will be created
+  argTargetView             STRING          --the name of the view to be created
+)
+
+BEGIN
+  /*use this for testing purposes*/
+  -- DECLARE argSourceDataset          STRING;
+  -- DECLARE argTableName              STRING;
+  -- DECLARE argExceptionColumnArray   ARRAY<STRING>;
+  -- DECLARE argTargetDataset          STRING;
+  -- DECLARE argTargetView             STRING;
+
+  DECLARE varConvertSyntax    STRING;
+  DECLARE curCounter          INT64;
+  DECLARE varRange            INT64;
+  DECLARE varCurrentColumn    STRING;
+  DECLARE varCurrentDatatype  STRING;
+  DECLARE varExceptColumnList STRING;
+  DECLARE varCastSyntax       STRING;
+
+  /*use this for testing purposes*/
+  -- SET argSourceDataset = ;
+  -- SET argTableName = ;
+  -- -- SET argExceptionColumnArray = [];
+  -- SET argExceptionColumnArray = [];
+  -- SET argTargetDataset = ;
+  -- SET argTargetView = ;
+
+  /*Finds any struct datatype columns with date/time and timestamp/offset formats. These are the ones that will be converted to timestamp*/
+  /*creates list of automatically detectible datatypes to be converted to timesetamp*/
+  CREATE OR REPLACE TEMP TABLE tmp_convert_column_list (row_key   INT64, column_name   STRING, data_type   STRING);
+  /*creates list of manually identified columns to be converted to timestamp*/
+  CREATE OR REPLACE TEMP TABLE tmp_exception_list (column_name    STRING);
+      INSERT INTO tmp_exception_list
+      SELECT 
+          col_name
+      FROM 
+        (SELECT argExceptionColumnArray) AS HashColArray
+          , UNNEST(argExceptionColumnArray) col_name
+      ;
+
+  /*creates a single list of all columns to be converted*/
+  EXECUTE IMMEDIATE
+  '''INSERT INTO tmp_convert_column_list '''
+  ||'''SELECT ROW_NUMBER() OVER() AS row_key, column_name, data_type FROM ''' 
+  ||'''('''
+  /*gets automatically detected STRUCT columns*/
+  || '''SELECT column_name, data_type '''
+  || '''FROM '''
+  || argSourceDataset || '''.INFORMATION_SCHEMA.COLUMNS '''
+  || """WHERE table_name = '""" || argTableName || """' """
+  || """AND data_type IN('STRUCT<date INT64, time INT64>', 'STRUCT<timestamp INT64, offset INT64>') """
+  ||'''UNION DISTINCT '''
+
+  /*gets manual exception list*/
+  || '''SELECT column_name, data_type '''
+  || '''FROM '''
+  || argSourceDataset || '''.INFORMATION_SCHEMA.COLUMNS '''
+  || """WHERE table_name = '""" || argTableName || """' """
+  || '''AND column_name IN(SELECT column_name FROM tmp_exception_list) '''
+  || ''');'''
+  ;
+
+
+  SET varRange = (SELECT COUNT(1) FROM tmp_convert_column_list);
+  SET curCounter = 1;
+  SET varExceptColumnList = '';
+  SET varCastSyntax = '';
+
+  /*creates the syntax to cast the value of the column into a timestamp or, in the case of integer arrays, into a single int column*/
+  WHILE curCounter <= varRange DO
+    SET varCurrentColumn = (SELECT column_name FROM tmp_convert_column_list WHERE row_key = curCounter);
+    SET varCurrentDatatype = (SELECT data_type FROM tmp_convert_column_list WHERE row_key = curCounter);
+    IF curCounter = 1 THEN
+      SET varExceptColumnList = varCurrentColumn;
+      ELSE SET varExceptColumnList = varExceptColumnList || """, """ || varCurrentColumn;
+    END IF;
+
+    IF varCurrentDatatype = 'STRUCT<date INT64, time INT64>' THEN
+                                    SET varCastSyntax = varCastSyntax || ' ' 
+                                        ||"""CAST("""
+                                          ||"""TIMESTAMP_ADD("""
+                                            ||"""TIMESTAMP_ADD("""
+                                              ||"""PARSE_DATE('%Y-%m-%d', '1970-01-01'), /*Unix epoch date ('1970-01-01') into a DATE*/ """
+                                            ||"""INTERVAL """ || varCurrentColumn || """.date DAY """
+                                          ||"""), /*adds createdAt.date days to the base date (1970-01-01)*/ """
+                                          ||"""INTERVAL CAST(""" || varCurrentColumn || """.time / 1000000 AS INT64) SECOND /*time in microseconds since midnight / 1000000 this converts into seconds*/ """ 
+                                          ||""") AS TIMESTAMP """ 
+                                        ||""") AS """ || varCurrentColumn || """, /*convert a date and time (separately provided as createdAt.date and createdAt.time) into a full TIMESTAMP*/ """
+                                        ;
+      ELSEIF varCurrentDatatype = 'STRUCT<timestamp INT64, offset INT64>' THEN
+                                    SET varCastSyntax = varCastSyntax || ' '
+                                        ||"""CASE """
+                                          ||"""WHEN """ || varCurrentColumn || """.timestamp BETWEEN -62135596800000000 AND 253402300799999999 THEN /*check if date between 0000-01-01 00:00:00 UTC and 9999-12-31 23:59:59.999999 UTC*/ """
+                                            ||"""TIMESTAMP_ADD("""
+                                              """TIMESTAMP_MICROS(CAST(""" || varCurrentColumn || """.timestamp AS INT64)),  /*converts microseconds timestamp to Integer and converts JobStatusAt.timestamp into a TIMESTAMP*/ """
+                                              ||"""INTERVAL CAST(""" || varCurrentColumn || """.offset / 1000 AS INT64) SECOND /*offset in milliseconds to seconds intger*/ """ 
+                                            ||""") """
+                                          ||"""ELSE NULL /*if value is outside the valid range return null*/ """
+                                        ||"""END AS """ || varCurrentColumn || """, """
+                                        ;
+      ELSEIF varCurrentDatatype = 'INT64' THEN
+                                    SET varCastSyntax = varCastSyntax || ' '
+                                        || """TIMESTAMP(DATE_ADD(DATE '1970-01-01', INTERVAL """ || varCurrentColumn || """ DAY)) AS """ || varCurrentColumn || """, /* converting a number of days (InvoicePeriodEndsOn) into a date, starting from the Unix epoch (1970-01-01)*/ """
+                                        ;
+      /*this is mostly not used except for cases where an integer array needs to be concatenated into a single integer*/
+      -- ELSEIF varCurrentDatatype = 'ARRAY<INT64>' THEN
+      --                               SET varCastSyntax = varCastSyntax || ' '
+      --                                   ||"""CAST( """
+      --                                       ||"""("""
+      --                                         ||"""SELECT STRING_AGG(CAST(flattened_col AS STRING), '') """
+      --                                         ||"""FROM UNNEST(""" || varCurrentColumn || """) flattened_col """
+      --                                       ||""") AS INT64 """
+      --                                   """) AS """ || varCurrentColumn || ""","""
+      --                                 ;
+    END IF;
+
+    SET curCounter = curCounter + 1;
+  END WHILE;
+
+
+  EXECUTE IMMEDIATE
+  """CREATE OR REPLACE VIEW """ || argTargetDataset || """.""" || argTargetView || """ AS """
+  ||""" SELECT """
+  || varCastSyntax
+  ||""" * EXCEPT (""" || varExceptColumnList || """) """
+  ||"""FROM """ || argSourceDataset || """.""" || argTableName ||""";"""
+  ;
+
+END;
