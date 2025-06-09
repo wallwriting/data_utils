@@ -1,4 +1,13 @@
-CREATE OR REPLACE PROCEDURE test.sp_internalizer(argSourceProject STRING, argSourceRegion STRING, argConnection STRING, argFormat STRING, argSourceUriBase ARRAY<STRING>, argTargetDataset STRING, argTargetExternalTable STRING, argTargetInternalTable STRING, argPrimaryKeyArray ARRAY<STRING>)
+CREATE OR REPLACE PROCEDURE test.sp_internalizer(
+  argSourceProject STRING, 
+  argSourceRegion STRING, 
+  -- argConnection STRING, 
+  argFormat STRING, 
+  argSourceUriBase ARRAY<STRING>, 
+  argTargetDataset STRING, 
+  argTargetExternalTable STRING, 
+  argTargetInternalTable STRING, 
+  argPrimaryKeyArray ARRAY<STRING>)
 BEGIN
 
 /*Matches the parameters in the procedure. Use this to test the script*/
@@ -65,8 +74,8 @@ BEGIN
 
   /*creates the external table*/
   EXECUTE IMMEDIATE
-  """ CREATE OR REPLACE EXTERNAL TABLE """ || argTargetDataset || """.""" || argTargetExternalTable
-  || """  WITH CONNECTION `""" || argSourceProject || """`.`""" || argSourceRegion || """`.`""" || argConnection || """`"""
+  """ CREATE OR REPLACE EXTERNAL TABLE """ || """`""" || argSourceProject || """`.""" || argTargetDataset || """.""" || argTargetExternalTable
+  -- || """  WITH CONNECTION `""" || argSourceProject || """`.`""" || argSourceRegion || """`.`""" || argConnection || """`"""
   || """  OPTIONS ("""
   || """    format = """ || argFormat || ""","""
   || """    uris = """ || varSourceUriModified
@@ -76,7 +85,7 @@ BEGIN
   /*checks if the target table already exists*/
   EXECUTE IMMEDIATE
   """CREATE OR REPLACE TEMP TABLE tmp_tablechecker AS """
-  || """SELECT COUNT(1) AS cnt FROM """ || argTargetDataset || """.__TABLES_SUMMARY__ WHERE table_id = '""" || argTargetInternalTable || """'; """
+  || """SELECT COUNT(1) AS cnt FROM """ || """`""" || argSourceProject || """`.""" || argTargetDataset || """.__TABLES_SUMMARY__ WHERE table_id = '""" || argTargetInternalTable || """'; """
   ;
 
   /*creates a new table if it doesn't exist*/
@@ -85,18 +94,18 @@ BEGIN
       /*first tries to convert a milliseconds integer into a timestamp*/
       EXECUTE IMMEDIATE
       """ CREATE OR REPLACE TABLE """ 
-      || argTargetDataset || """.""" || argTargetInternalTable || """ AS """
+      || """`""" || argSourceProject || """`.""" ||  argTargetDataset || """.""" || argTargetInternalTable || """ AS """
       || """ SELECT payload.*, source_metadata.*, TIMESTAMP_MILLIS(source_timestamp) AS source_timestamp FROM """ 
-      || argTargetDataset || """.""" || argTargetExternalTable || """;"""
+      || """`""" || argSourceProject || """`.""" || argTargetDataset || """.""" || argTargetExternalTable || """;"""
       ;
 
       /*If this errors, it assumes it's due to the source_timestamp not being in millis and tries to do a straight insert*/
       EXCEPTION WHEN ERROR THEN
       EXECUTE IMMEDIATE
       """ CREATE OR REPLACE TABLE """ 
-      || argTargetDataset || """.""" || argTargetInternalTable || """ AS """
+      || """`""" || argSourceProject || """`.""" || argTargetDataset || """.""" || argTargetInternalTable || """ AS """
       || """ SELECT payload.*, source_metadata.*, source_timestamp FROM """ 
-      || argTargetDataset || """.""" || argTargetExternalTable || """;"""
+      || """`""" || argSourceProject || """`.""" || argTargetDataset || """.""" || argTargetExternalTable || """;"""
       ;
     END;
     /*if the table doesn't exist, performs an upsert.
@@ -105,23 +114,23 @@ BEGIN
     ELSE 
       BEGIN TRANSACTION;
       EXECUTE IMMEDIATE
-      """DELETE FROM """ || argTargetDataset || """.""" || argTargetInternalTable || """ mx """
+      """DELETE FROM """ || """`""" || argSourceProject || """`.""" || argTargetDataset || """.""" || argTargetInternalTable || """ mx """
       || """WHERE EXISTS (SELECT 1 FROM """ 
-      || argTargetDataset || """.""" || argTargetExternalTable || """ s WHERE """ || varJoinSyntax || """); """
+      || """`""" || argSourceProject || """`.""" || argTargetDataset || """.""" || argTargetExternalTable || """ s WHERE """ || varJoinSyntax || """); """
       ;
         BEGIN
           /*first tries to convert a milliseconds integer into a timestamp*/
           EXECUTE IMMEDIATE
-          """ INSERT INTO """ || argTargetDataset || """.""" || argTargetInternalTable 
+          """ INSERT INTO """ || """`""" || argSourceProject || """`.""" || argTargetDataset || """.""" || argTargetInternalTable 
           || """      SELECT s.payload.*, s.source_metadata.*, TIMESTAMP_MILLIS(s.source_timestamp) AS source_timestamp """
-          || """      FROM """ || argTargetDataset || """.""" || argTargetExternalTable || """ s """
+          || """      FROM """ || """`""" || argSourceProject || """`.""" || argTargetDataset || """.""" || argTargetExternalTable || """ s """
           || """      JOIN """
           || """        ( """
           || """          SELECT """
           ||            varKeyColumnList
           || """            , MAX(source_timestamp) as source_timestamp """
           || """          FROM """
-          ||            argTargetDataset || """.""" || argTargetExternalTable
+          ||            """`""" || argSourceProject || """`.""" || argTargetDataset || """.""" || argTargetExternalTable
           || """          GROUP BY """
           ||            varKeyColumnList
           || """        ) mx """
@@ -130,16 +139,16 @@ BEGIN
           /*If this errors, it assumes it's due to the source_timestamp not being in millis and tries to do a straight insert*/
           EXCEPTION WHEN ERROR THEN
             EXECUTE IMMEDIATE
-            """ INSERT INTO """ || argTargetDataset || """.""" || argTargetInternalTable 
+            """ INSERT INTO """ || """`""" || argSourceProject || """`.""" || argTargetDataset || """.""" || argTargetInternalTable 
             || """      SELECT s.payload.*, s.source_metadata.*, s.source_timestamp """
-            || """      FROM """ || argTargetDataset || """.""" || argTargetExternalTable || """ s """
+            || """      FROM """ || """`""" || argSourceProject || """`.""" || argTargetDataset || """.""" || argTargetExternalTable || """ s """
             || """      JOIN """
             || """        ( """
             || """          SELECT """
             ||            varKeyColumnList
             || """            , MAX(source_timestamp) as source_timestamp """
             || """          FROM """
-            ||            argTargetDataset || """.""" || argTargetExternalTable
+            ||            """`""" || argSourceProject || """`.""" || argTargetDataset || """.""" || argTargetExternalTable
             || """          GROUP BY """
             ||            varKeyColumnList
             || """        ) mx """
@@ -150,7 +159,7 @@ BEGIN
   END IF;
     /*drops the external table that was created in order to keep the dataset tidy. Remove this if you need to keep the external table for analysis*/
     EXECUTE IMMEDIATE
-    """DROP TABLE IF EXISTS """ || argTargetDataset || """.""" || argTargetExternalTable || """;"""
+    """DROP TABLE IF EXISTS """ || """`""" || argSourceProject || """`.""" || argTargetDataset || """.""" || argTargetExternalTable || """;"""
     ;
 
 END;
