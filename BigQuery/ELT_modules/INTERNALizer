@@ -1,22 +1,4 @@
-/*This proc is solely to work around the issues of how datastream creates its directory structure
-when replicates into GCS. The directory doesn't allow for partitioned external tables, which causes
-performance issues at scale. This allows devs to create an external table just on a subdirectory or file
-to keep up performance and load the data into a copy of the full source data (ie all history) into 
-an internal table. This allows for the versitility of using GCS as the data lake (otherwise you could replicate directly into BigQuery), while maintaining overall performance*/
-
-CREATE OR REPLACE PROCEDURE test.sp_internalizer
-(
-    argSourceProject STRING, --source project name
-    argSourceRegion STRING, --source region, needed for the biglake table creation
-    argConnection STRING, --source connection, needed for the biglake table. Needs to be created beforehand
-    argFormat STRING, --format of the files (json, avro, csv, ect.)
-    argSourceUriBase ARRAY<STRING>, --An array of the source uris to be used. Needs a filename or wildcard at the end
-    argTargetDataset STRING, --dataset where the external and internal target tables will exist
-    argTargetExternalTable STRING, --name for the external table you want to create
-    argTargetInternalTable STRING, --name for the internal table you want to load data into
-    argPrimaryKeyArray ARRAY<STRING> --the logical pk of the external table, used for upserts
-)
-
+CREATE OR REPLACE PROCEDURE test.sp_internalizer(argSourceProject STRING, argSourceRegion STRING, argConnection STRING, argFormat STRING, argSourceUriBase ARRAY<STRING>, argTargetDataset STRING, argTargetExternalTable STRING, argTargetInternalTable STRING, argPrimaryKeyArray ARRAY<STRING>)
 BEGIN
 
 /*Matches the parameters in the procedure. Use this to test the script*/
@@ -132,14 +114,14 @@ BEGIN
           EXECUTE IMMEDIATE
           """ INSERT INTO """ || argTargetDataset || """.""" || argTargetInternalTable 
           || """      SELECT s.payload.*, s.source_metadata.*, TIMESTAMP_MILLIS(s.source_timestamp) AS source_timestamp """
-          || """      FROM """ || argTargetDataset || """.""" || argTargetInternalTable || """ s """
+          || """      FROM """ || argTargetDataset || """.""" || argTargetExternalTable || """ s """
           || """      JOIN """
           || """        ( """
           || """          SELECT """
           ||            varKeyColumnList
           || """            , MAX(source_timestamp) as source_timestamp """
           || """          FROM """
-          ||            argTargetDataset || """.""" || argTargetInternalTable
+          ||            argTargetDataset || """.""" || argTargetExternalTable
           || """          GROUP BY """
           ||            varKeyColumnList
           || """        ) mx """
@@ -150,14 +132,14 @@ BEGIN
             EXECUTE IMMEDIATE
             """ INSERT INTO """ || argTargetDataset || """.""" || argTargetInternalTable 
             || """      SELECT s.payload.*, s.source_metadata.*, s.source_timestamp """
-            || """      FROM """ || argTargetDataset || """.""" || argTargetInternalTable || """ s """
+            || """      FROM """ || argTargetDataset || """.""" || argTargetExternalTable || """ s """
             || """      JOIN """
             || """        ( """
             || """          SELECT """
             ||            varKeyColumnList
             || """            , MAX(source_timestamp) as source_timestamp """
             || """          FROM """
-            ||            argTargetDataset || """.""" || argTargetInternalTable
+            ||            argTargetDataset || """.""" || argTargetExternalTable
             || """          GROUP BY """
             ||            varKeyColumnList
             || """        ) mx """
@@ -171,4 +153,4 @@ BEGIN
     """DROP TABLE IF EXISTS """ || argTargetDataset || """.""" || argTargetExternalTable || """;"""
     ;
 
-END
+END;
