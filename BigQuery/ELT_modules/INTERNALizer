@@ -1,13 +1,14 @@
 CREATE OR REPLACE PROCEDURE test.sp_internalizer(
-  argSourceProject STRING, 
-  argSourceRegion STRING, 
+  argSourceProject STRING,  --the project that the data will be loaded into
+  -- argSourceRegion STRING, 
   -- argConnection STRING, 
-  argFormat STRING, 
-  argSourceUriBase ARRAY<STRING>, 
-  argTargetDataset STRING, 
-  argTargetExternalTable STRING, 
-  argTargetInternalTable STRING, 
-  argPrimaryKeyArray ARRAY<STRING>)
+  argFormat STRING, --the data file format (usually avro, json, etc) in lower case
+  argSourceUriBase ARRAY<STRING>, -- the bucket url down to the table-level. Must add the trailing slash and wildcard.
+  argTargetDataset STRING,  -- the dataset that the data will be loaded into
+  argTargetExternalTable STRING, --the name of the external version of the table
+  argTargetInternalTable STRING, --the name of the internal version of the table
+  argPrimaryKeyArray ARRAY<STRING>) --the column name of the primary key field (in array format for multiple columns)
+
 BEGIN
 
 /*Matches the parameters in the procedure. Use this to test the script*/
