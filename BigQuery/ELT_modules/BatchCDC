@@ -1,29 +1,9 @@
-CREATE OR REPLACE PROCEDURE test.sp_BatchCDC
-/*This will get only the records that have been created since the last time an ETL batch was run. It requires a metadata table that stores the timestamp of the last time the batch was run. The table must have a key field that is an integer and a timestamp field. In the call, use parentheses The argSourceTableArry is an array so that you can do this for multiple source/target table combinations in one call. In the call, use brackets for strcut then parentheses for array.*/
-(
-argSourceTableArray ARRAY<STRUCT<
-                      col_source_project_name STRING, --the project name of the source table
-                      col_source_dataset STRING,  --the dataset of the source table
-                      col_source_table_name STRING,  --the name of the source table
-                      col_source_timestamp_field_name STRING, --the column name of the timestamp field stating when this record was created 
-                      col_target_table_name STRING>>,  --the name of the target table to load the results
-argMetaTableStruct STRUCT<
-                    meta_project STRING, --the project where the metadata table is located. Normally this is the same as the target project.
-                    meta_dataset STRING,  --the dataset where the metadata table is located. Normally this is the same as the target dataset.
-                    meta_table_name STRING, --the name of the metadata table
-                    meta_key STRING, --the name of the key field of the metadata table. This normally should be an integer
-                    meta_timestamp STRING>, -- the name of the timestamp field in the metadata table
-/*The dataset of the target table--this means this can only be done for a single target dataset, this canbe modified if each target table needs its own dataset*/
-argTargetDataset STRING
-)
-
+CREATE OR REPLACE PROCEDURE dpa.sp_BatchCDC_no_project(argSourceTableArray ARRAY<STRUCT<col_source_dataset STRING, col_source_table_name STRING, col_source_timestamp_field_name STRING, col_target_table_name STRING>>, argMetaTableStruct STRUCT<meta_dataset STRING, meta_table_name STRING, meta_key STRING, meta_timestamp STRING>, argTargetDataset STRING)
 BEGIN
 
-
-
 --/*this is the list of variables that should go into the stored proc's parameters--used for testing*/
--- DECLARE argSourceTableArray ARRAY<STRUCT<col_source_project_name STRING, col_source_dataset STRING, col_source_table_name STRING, col_source_timestamp_field_name STRING, col_target_table_name STRING>>;
--- DECLARE argMetaTableStruct STRUCT<meta_project STRING, meta_dataset STRING, meta_table_name STRING, meta_key STRING, meta_timestamp STRING>;
+-- DECLARE argSourceTableArray ARRAY<STRUCT<col_source_dataset STRING, col_source_table_name STRING, col_source_timestamp_field_name STRING, col_target_table_name STRING>>;
+-- DECLARE argMetaTableStruct STRUCT<meta_dataset STRING, meta_table_name STRING, meta_key STRING, meta_timestamp STRING>;
 -- DECLARE argTargetDataset STRING;
 --/*end of variables that are sp parameters*/
 
@@ -32,8 +12,6 @@ BEGIN
     DECLARE varIterationTable STRING;
     DECLARE varQueryText STRING;
 
-
-    DECLARE varIterationProject STRING;
     DECLARE varIterationDataset STRING;
     DECLARE varIterationTimestampCol STRING;
     DECLARE varIterationTargetTable STRING;
@@ -41,14 +19,11 @@ BEGIN
     DECLARE varLastRunTimestamp TIMESTAMP;
     DECLARE varThisRunTimestamp TIMESTAMP;
 
-
-    DECLARE varMainProject STRING;
     DECLARE varMainDataset STRING;
     DECLARE varMainTable STRING;
     DECLARE varMainJoinKey STRING;
     DECLARE varMainTimestampCol STRING;
 
-    DECLARE varMetaProject STRING;
     DECLARE varMetaDataset STRING;
     DECLARE varMetaTable STRING;
     DECLARE varMetaKey STRING;
@@ -56,16 +31,13 @@ BEGIN
 
     DECLARE varDMLPrefix STRING;
 
-
 --/*this is setting the parameters that would normally be passed on the stored proc call*/
--- SET argSourceTableArray = [('MY-PROJECT-NAME', 'MY-DATASET', 'MY-TABLE', 'MY-TIMESTAMP-FIELD', 'MY-TARGET-TABLE')];
--- SET argMetaTableStruct = ('MY-PROJECT-NAME', 'MY-DATASET', 'MY-METADATA-TABLE', 'MY-METADATA-KEY-FIELD', 'MY-METADATA-TIMESTAMP');
+-- SET argSourceTableArray = [('MY-DATASET', 'MY-TABLE', 'MY-TIMESTAMP-FIELD', 'MY-TARGET-TABLE')];
+-- SET argMetaTableStruct = ('MY-DATASET', 'MY-METADATA-TABLE', 'MY-METADATA-KEY-FIELD', 'MY-METADATA-TIMESTAMP');
 -- SET argTargetDataset = 'MY-TARGET-DATASET';
 --/*end section*/
 
     /*sets meta table variables based on the STRUCT paramater passed in the proc call*/
-    SET varMetaProject = 
-            (WITH unstruct as (select argMetaTableStruct as a) SELECT a.meta_project FROM unstruct);
     SET varMetaDataset = 
             (WITH unstruct as (select argMetaTableStruct as a) SELECT a.meta_dataset FROM unstruct);
     SET varMetaTable = 
@@ -75,18 +47,12 @@ BEGIN
     SET varMetaTimestampCol = 
             (WITH unstruct as (select argMetaTableStruct as a) SELECT a.meta_timestamp FROM unstruct);
 
-  /*This is an optional section that creates the metadata table automatically if it doesn't exist with a timestamp that goes back 10 years*/
-  -- EXECUTE IMMEDIATE
-  -- """ CREATE TABLE IF NOT EXISTS """ || varMetaDataset || """.""" || varMetaTable || """ AS """ 
-	-- || """SELECT 1 AS """ || varMetaKey || """, """ 
-	-- || """TIMESTAMP_ADD(TIMESTAMP_TRUNC(CURRENT_TIMESTAMP(), DAY), INTERVAL -3650 DAY) AS """ || varMetaTimestampCol || """;"""
-  -- ;
 
     /*Puts the last run timestamp from the meta table into a temp table--this is needed because
     the syntax requirements for setting a variable in the 2nd step can't include variables for the dataset and table name*/
     EXECUTE IMMEDIATE
     'CREATE OR REPLACE TEMP TABLE tmp_var_meta AS '
-    || 'SELECT MAX(' || varMetaTimestampCol || ') AS meta_ts FROM ' || varMetaProject || '.' || varMetaDataset || '.' 
+    || 'SELECT MAX(' || varMetaTimestampCol || ') AS meta_ts FROM ' || varMetaDataset || '.' 
     || varMetaTable || ';'
     ;
     SET varLastRunTimestamp = (SELECT meta_ts FROM tmp_var_meta);
@@ -115,8 +81,6 @@ BEGIN
     SET varRange = (SELECT COUNT(*) FROM tmp_right_table_flattened_list);
 
     WHILE curCounter <= varRange DO
-        SET varIterationProject = 
-                (SELECT a.col_source_project_name FROM tmp_right_table_flattened_list WHERE row_id = curCounter);
         SET varIterationDataset = 
                 (SELECT a.col_source_dataset FROM tmp_right_table_flattened_list WHERE row_id = curCounter);
         SET varIterationTable = 
@@ -168,7 +132,7 @@ BEGIN
         SET varQueryText = 
                 varDMLPrefix
                 || ' SELECT ' || ' a.* FROM ' 
-                || varIterationProject || '.' || varIterationDataset || '.' || varIterationTable || ' AS a '
+                || varIterationDataset || '.' || varIterationTable || ' AS a '
                 || varWhereClause
                 || ';';
         /*Executes the above query*/
@@ -180,7 +144,7 @@ BEGIN
 
 
     EXECUTE IMMEDIATE
-    'UPDATE ' || varMetaProject || '.' || varMetaDataset || '.' || varMetaTable
+    'UPDATE ' || varMetaDataset || '.' || varMetaTable
     || ' SET ' || varMetaKey || ' = ' || varMetaKey || ' + 1, '
     || varMetaTimestampCol || """ = '""" || varThisRunTimestamp || """' WHERE 1=1;"""
     ;
