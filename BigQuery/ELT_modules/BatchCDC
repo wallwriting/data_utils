@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE dpa.sp_BatchCDC_no_project(argSourceTableArray ARRAY<STRUCT<col_source_dataset STRING, col_source_table_name STRING, col_source_timestamp_field_name STRING, col_target_table_name STRING>>, argMetaTableStruct STRUCT<meta_dataset STRING, meta_table_name STRING, meta_key STRING, meta_timestamp STRING>, argTargetDataset STRING)
+CREATE OR REPLACE PROCEDURE dpa.sp_BatchCDC(argSourceTableArray ARRAY<STRUCT<col_source_dataset STRING, col_source_table_name STRING, col_source_timestamp_field_name STRING, col_target_table_name STRING>>, argMetaTableStruct STRUCT<meta_dataset STRING, meta_table_name STRING, meta_key STRING, meta_timestamp STRING>, argTargetDataset STRING)
 BEGIN
 
 --/*this is the list of variables that should go into the stored proc's parameters--used for testing*/
