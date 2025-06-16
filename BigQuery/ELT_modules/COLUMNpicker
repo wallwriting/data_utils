@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE dpa.sp_columnpicker_no_project(varSourceDataset STRING, varSourceTable STRING, varTargetDataset STRING, varTargetTable STRING, varSelectColumnArray ARRAY<STRUCT<source_column_name STRING, target_column_name STRING>>)
+CREATE OR REPLACE PROCEDURE dpa.sp_columnpicker(varSourceDataset STRING, varSourceTable STRING, varTargetDataset STRING, varTargetTable STRING, varSelectColumnArray ARRAY<STRUCT<source_column_name STRING, target_column_name STRING>>)
 BEGIN
     DECLARE varSelectColumnString STRING;
     DECLARE varTargetTableCheck STRING;
