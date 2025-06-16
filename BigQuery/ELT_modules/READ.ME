@@ -73,7 +73,6 @@ COLUMNpicker
   - Create a new table using a specified subset of columns from a source table
   - New column names in the target table must also be specified
   Arguments:
-    varSourceProject STRING
     varSourceDataset STRING
     varSourceTable STRING
     varTargetDataset STRING
@@ -85,7 +84,6 @@ KEYmaster
   - User passes a set of fields--the values will be converted to string and concatenated together, then a farm fingerprint hash will be applied
   - The same concatenated string value will always produce the same hash--this means it can be used prior to running a JOINer in cases where tables have multi-column join keys
   Arguments:
-      varSourceProject STRING
       varSourceDataset STRING
       varSourceTable STRING
       varTargetDataset STRING
@@ -107,8 +105,8 @@ BatchCDC
   - Takes records from multiple source tables that have been inserted after the last batch run of an ELT process
   - This is used as the first step of an ELT pipeline to select only change data records. It requires a metadata table that stores the timestamp for the most recent batch run
   Arguments:
-    argSourceTableArray ARRAY<STRUCT<col_source_project_name STRING, col_source_dataset STRING, col_source_table_name STRING, col_source_timestamp_field_name STRING, col_target_table_name STRING>>: An array of struct--each struct has information about 1 source and 1 target table, can pass multiple values in the array to do this for multiple tables. The timestamp field in this section does not have to be an actual timestamp, but it must be sometype of calendar field (date, datetime, etc.) that can be cast to a timestamp. Use brackets then parentheses
-    argMetaTableStruct STRUCT<meta_project STRING, meta_dataset STRING, meta_table_name STRING, meta_key STRING, meta_timestamp STRING>: The metadata table with the batch run information--the table must have a key field that is an integer and a timestamp field--use parentheses only
+    argSourceTableArray ARRAY<STRUCT<col_source_dataset STRING, col_source_table_name STRING, col_source_timestamp_field_name STRING, col_target_table_name STRING>>: An array of struct--each struct has information about 1 source and 1 target table, can pass multiple values in the array to do this for multiple tables. The timestamp field in this section does not have to be an actual timestamp, but it must be sometype of calendar field (date, datetime, etc.) that can be cast to a timestamp. Use brackets then parentheses
+    argMetaTableStruct STRUCT<meta_dataset STRING, meta_table_name STRING, meta_key STRING, meta_timestamp STRING>: The metadata table with the batch run information--the table must have a key field that is an integer and a timestamp field--use parentheses only
     argTargetDataset STRING: The dataset of the target table--this means this can only be done for a single target dataset, this canbe modified if each target table needs its own dataset
 
 
@@ -126,9 +124,6 @@ INTERNALizer
   - This proc is solely to work around the issues of how datastream creates its directory structure when replicates into GCS. The directory doesn't allow for partitioned external tables, which causes performance issues at scale. This allows devs to create an external table just on a subdirectory or file to keep up performance and load the data into a copy of the full source data (ie all history) into  an internal table. This allows for the versitility of using GCS as the data lake (otherwise you could replicate directly into BigQuery), while maintaining overall performance.
   - In cases where the same record has multiple database transactions in a batch, this script will pick the most recent one.
     Arguments:
-      argSourceProject STRING: source project name
-      argSourceRegion STRING: source region, needed for the biglake table creation
-      argConnection STRING: source connection, needed for the biglake table. Needs to be created beforehand
       argFormat STRING: format of the files (json, avro, csv, ect.)
       argSourceUriBase ARRAY<STRING>: An array of the source uris to be used. Needs a filename or wildcard at the end
       argTargetDataset STRING: dataset where the external and internal target tables will exist
@@ -141,9 +136,6 @@ INTERNALizer_incremental
   - This is used in cases where passing hard-coded arguments for the uri wouldn't be feasible.
   - Note there are two extra arguments here
     Arguments:
-      argSourceProject STRING: source project name
-      argSourceRegion STRING: source region, needed for the biglake table creation
-      argConnection STRING: source connection, needed for the biglake table. Needs to be created beforehand
       argFormat STRING: format of the files (json, avro, csv, ect.)
       argSourceUriBase ARRAY<STRING>: An array of the source uris to be used. Needs a filename or wildcard at the end
       argTargetDataset STRING: dataset where the external and internal target tables will exist
