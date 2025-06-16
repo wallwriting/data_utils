@@ -1,16 +1,4 @@
-CREATE OR REPLACE PROCEDURE test.sp_upserter
-(
-  source_project STRING, 
-  source_dataset STRING, 
-  source_table STRING, 
-  source_version STRING, 
-  source_dml_indicator STRING, --the name of the column that shows the dml indicator. Datastream calls it 'change_type'
-  join_key STRING, 
-  target_dataset STRING, 
-  target_table STRING,
-  insert_var STRING, --the value for inserts. Usually 'I' or 'INSERT'. Case sensitive.
-  update_var STRING  --the value for inserts. Usually 'U' or 'UPDATE'. Case sensitive.
-)
+CREATE OR REPLACE PROCEDURE dpa.sp_upserter(source_dataset STRING, source_table STRING, source_version STRING, source_dml_indicator STRING, join_key STRING, target_dataset STRING, target_table STRING, insert_var STRING, update_var STRING)
 BEGIN
 
     DECLARE col_txt_var STRING;
@@ -70,7 +58,7 @@ BEGIN
     || '                            CAST(column_name AS STRING) AS column_name, '
     || '                            data_type '
     || '                        FROM  '
-    ||                            source_project || '.' || source_dataset || '.INFORMATION_SCHEMA.COLUMNS '
+    ||                            source_dataset || '.INFORMATION_SCHEMA.COLUMNS '
     || '                        WHERE  '
     || """                            table_name = '""" || source_table || """' """
     || '                    ) tgt '
@@ -115,7 +103,7 @@ BEGIN
         '        SELECT ' ||
         '            maxtgt.' || join_key ||
         '        FROM ' ||
-                    source_project || '.' || source_dataset || '.' || source_table || ' as maxtgt' || 
+                    source_dataset || '.' || source_table || ' as maxtgt' || 
         '    );'
         ;
 
@@ -129,7 +117,7 @@ BEGIN
                     colArrayPrefixVar || 
         '        FROM '  ||
                     /*source*/ 
-                    source_project || '.' || source_dataset || '.' || source_table || ' src' ||
+                    source_dataset || '.' || source_table || ' src' ||
         '        JOIN ' ||
                     /*This finds the max version number for each id*/
         '            (' ||
