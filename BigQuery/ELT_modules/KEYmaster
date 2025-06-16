@@ -1,5 +1,4 @@
-CREATE OR REPLACE PROCEDURE test.sp_keymaster(varSourceProject STRING, varSourceDataset STRING, varSourceTable STRING, varTargetDataset STRING, varTargetTable STRING, varTargetKey STRING, varHashColumnArray ARRAY<STRING>)
-
+CREATE OR REPLACE PROCEDURE dpa.sp_keymaster(varSourceDataset STRING, varSourceTable STRING, varTargetDataset STRING, varTargetTable STRING, varTargetKey STRING, varHashColumnArray ARRAY<STRING>)
 BEGIN
     DECLARE varHashText STRING;
     DECLARE curCounter INT64;
@@ -79,7 +78,7 @@ BEGIN
             THEN SET varHashText = varHashText || (SELECT col_name FROM tmp_table_list WHERE row_key = curCounter AND session_name = varSessionName ) || ',';
         ELSE 
             SET varHashText = varHashText || (SELECT col_name FROM tmp_table_list WHERE row_key = curCounter AND session_name = varSessionName ) || ')) AS ' 
-                    || varTargetKey || ', * FROM ' || varSourceProject || '.' || varSourceDataset || '.' || varSourceTable || ';';
+                    || varTargetKey || ', * FROM ' || varSourceDataset || '.' || varSourceTable || ';';
         END IF;
         SET curCounter = curCounter + 1;
     END WHILE;
