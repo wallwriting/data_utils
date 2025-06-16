@@ -58,7 +58,6 @@ UPSERTer
   - Proc will only consider column names that match in the source and target tables 
   - Proc doesn't need an explicit value for deletes due to the way the IF statement is structured
     Arguments:
-      source_project STRING: The name of the source project--must be put in quotes (eg 'MY-SOURCE-PROJECT')
       source_dataset STRING:  The source dataset--must be put in quotes (eg 'MY-SOURCE-DATASET')
       source_table STRING: The source table--must be put in quuotes (eg 'MY_SOURCE_TABLE_NAME')
       source_version STRING: The column used to version a record--this is often a timestamp or sequence number--column name must match between source and target and must be put in quotes (eg 'my_version_column')
