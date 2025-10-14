@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE test.sp_datamockup(varLoadPrj STRING, varLoadDs STRING, varLoadTbl STRING, varKeyCol STRING, varLowKeyVal INT64, varHighKeyVal INT64)
+CREATE OR REPLACE PROCEDURE dpa.sp_datamockup(varLoadDs STRING, varLoadTbl STRING, varKeyCol STRING, varLowKeyVal INT64, varHighKeyVal INT64)
 BEGIN
 
 DECLARE varCurColName STRING;
@@ -18,11 +18,11 @@ DECLARE varCurFunction STRING;
 
 
 
-SET varRandomTimestamp = """test.random_timestamp('2020-01-01 00:00:00', '2023-01-01 00:00:00')""";
-SET varRandomInt = """test.random_integer(-1000000000, 1000000000)""";
-SET varRandomString = """test.random_string(250)""";
-SET varRandomDate = """test.random_date('2020-01-01', '2023-01-01')""";
-SET varRandomDatetime = """test.random_datetime('2020-01-01 00:00:00', '2023-01-01 00:00:00')""";
+SET varRandomTimestamp = """dpa.random_timestamp('2020-01-01 00:00:00', '2023-01-01 00:00:00')""";
+SET varRandomInt = """dpa.random_integer(-1000000000, 1000000000)""";
+SET varRandomString = """dpa.random_string(250)""";
+SET varRandomDate = """dpa.random_date('2020-01-01', '2023-01-01')""";
+SET varRandomDatetime = """dpa.random_datetime('2020-01-01 00:00:00', '2023-01-01 00:00:00')""";
 
 
 
@@ -40,7 +40,7 @@ IF (SELECT nullcheck FROM tmp_key_null_check) = 'DELETENULLFIELD' THEN
     EXECUTE IMMEDIATE
     'INSERT INTO ' || varLoadDs || '.' || varLoadTbl
     || ' (' || varKeyCol || ')'
-    || 'SELECT sequence_number FROM test.meta_series WHERE sequence_number BETWEEN ' || varLowKeyVal || ' AND ' || varHighKeyVal ||';'
+    || 'SELECT sequence_number FROM dpa.meta_series WHERE sequence_number BETWEEN ' || varLowKeyVal || ' AND ' || varHighKeyVal ||';'
     ;
 END IF;
 
@@ -78,7 +78,7 @@ END IF;
     || '        SELECT '
     || '            column_name '
     || '        FROM '
-    ||            varLoadPrj || '.' || varLoadDs || '.INFORMATION_SCHEMA.COLUMNS '
+    ||            varLoadDs || '.INFORMATION_SCHEMA.COLUMNS '
     || '       WHERE '
     || """            table_name = '""" || varLoadTbl || """' """
     || """            AND LEFT(data_type, 5) NOT IN('ARRAY', 'STRUC', 'JSON') """
@@ -137,7 +137,7 @@ END IF;
     || '                        SELECT '
     || '                            column_name '
     || '                        FROM '
-    ||                            varLoadPrj || '.' || varLoadDs || '.INFORMATION_SCHEMA.COLUMNS '
+    ||                            varLoadDs || '.INFORMATION_SCHEMA.COLUMNS '
     || '                       WHERE '
     || """                            table_name = '""" || varLoadTbl || """' """
     || """                            AND LEFT(data_type, 5) NOT IN('ARRAY', 'STRUC', 'JSON') """
@@ -158,7 +158,7 @@ END IF;
     || '                                [ '
     ||                                varMaxColArray
     || '                                ] '
-    || '                            FROM ' || varLoadPrj || '.' || varLoadDs || '.' || varLoadTbl
+    || '                            FROM ' || varLoadDs || '.' || varLoadTbl
     || '                        )) col2 '
     || '        ) b '
     || '        ON a.key = b.key '
@@ -186,7 +186,7 @@ EXECUTE IMMEDIATE
 ||     'column_name, '
 ||     'data_type '
 || 'FROM ' 
-||     varLoadPrj || '.' || varLoadDs || '.INFORMATION_SCHEMA.COLUMNS ' 
+||     varLoadDs || '.INFORMATION_SCHEMA.COLUMNS ' 
 || 'WHERE '
 ||     'table_name = ' || """'""" || varLoadTbl || """' """
 ||     'AND column_name NOT IN( ' || varGroomedColArray || ') '
