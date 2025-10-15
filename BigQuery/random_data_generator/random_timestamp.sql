@@ -1,5 +1,5 @@
 /*creates random timestamp down to microseconds*/
-CREATE OR REPLACE function demo.random_timestamp(low timestamp ,high timestamp)
+CREATE OR REPLACE function dpa.random_timestamp(low timestamp ,high timestamp)
 as
 (
     (
