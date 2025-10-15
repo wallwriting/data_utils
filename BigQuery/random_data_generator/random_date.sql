@@ -1,5 +1,5 @@
 /*creates random date*/
-CREATE OR REPLACE function demo.random_date(low date ,high date)
+CREATE OR REPLACE function dpa.random_date(low date ,high date)
 as
 (
     (
