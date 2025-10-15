@@ -3,7 +3,7 @@ The argument is for how long you need the string to be. The function can only ge
 of approx 200-300 characters--the exact number differs because of the varying number of non-alpha
 characters that have to be removed from the hash*/
 
-CREATE OR REPLACE FUNCTION demo.random_alpha(lenArg int64) as
+CREATE OR REPLACE FUNCTION dpa.random_alpha(lenArg int64) as
 (
     (
         SELECT 
