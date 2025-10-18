@@ -7,6 +7,8 @@ DECLARE varGroomedColArray STRING;
 DECLARE curColTrack INT64;
 DECLARE varRangeLimit INT64;
 DECLARE varCurColDatatype STRING;
+DECLARE varRandomFloat STRING;
+DECLARE varRandomNumeric STRING;
 DECLARE varRandomTimestamp STRING;
 DECLARE varRandomInt STRING;
 DECLARE varRandomString STRING;
@@ -16,8 +18,8 @@ DECLARE varCurFunction STRING;
 
 
 
-
-
+SET varRandomFloat = """dpa.random_float(1,10000)""";
+SET varRandomNumeric = """dpa.random_numeric(1,10000)""";
 SET varRandomTimestamp = """dpa.random_timestamp('2020-01-01 00:00:00', '2023-01-01 00:00:00')""";
 SET varRandomInt = """dpa.random_integer(-1000000000, 1000000000)""";
 SET varRandomString = """dpa.random_string(250)""";
@@ -213,6 +215,8 @@ WHILE curColTrack <= varRangeLimit DO
 
             IF varCurColDatatype = 'STRING' THEN SET varCurFunction = varRandomString;
                 ELSEIF varCurColDatatype = 'TIMESTAMP' THEN SET varCurFunction = varRandomTimestamp;
+                ELSEIF varCurColDatatype = 'FLOAT64' THEN SET varCurFunction = varRandomFloat;
+                ELSEIF varCurColDatatype = 'NUMERIC' THEN SET varCurFunction = varRandomNumeric;
                 ELSEIF varCurColDatatype = 'INT64' THEN SET varCurFunction = varRandomInt;
                 ELSEIF varCurColDatatype = 'DATE' THEN SET varCurFunction = varRandomDate;
                 ELSEIF varCurColDatatype = 'DATETIME' THEN SET varCurFunction = varRandomDatetime;
@@ -231,4 +235,4 @@ END WHILE;
 
 
 
-END
+END;
