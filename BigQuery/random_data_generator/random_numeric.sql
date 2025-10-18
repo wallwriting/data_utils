@@ -1,5 +1,5 @@
 /*creates random numeric digit*/
-CREATE OR REPLACE function demo.random_numeric(low numeric ,high numeric)
+CREATE OR REPLACE function dpa.random_numeric(low numeric ,high numeric)
 as
 (
     (
