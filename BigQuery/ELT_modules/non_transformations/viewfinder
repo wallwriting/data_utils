@@ -1,13 +1,4 @@
-CREATE OR REPLACE PROCEDURE test.sp_viewfinder(
-  /*This proc creates views that cast various struct fields into timestamps. This is due to BigQuery
-  sometimes seeing columns from datastream as struct datatypes rather than timestamps*/
-  argSourceDataset          STRING,         --the dataset where the table is located
-  argTableName              STRING,         --the name of the table
-  argExceptionColumnArray   ARRAY<STRING>,  --the list of any manual exceptions, use brackets. If none, pass blank value: ['']
-  argTargetDataset          STRING,         --the dataset where the view will be created
-  argTargetView             STRING          --the name of the view to be created
-)
-
+CREATE OR REPLACE PROCEDURE `dpa.sp_viewfinder`(argSourceDataset STRING, argTableName STRING, argExceptionColumnArray ARRAY<STRING>, argTargetDataset STRING, argTargetView STRING)
 BEGIN
   /*use this for testing purposes*/
   -- DECLARE argSourceDataset          STRING;
@@ -124,12 +115,18 @@ BEGIN
     SET curCounter = curCounter + 1;
   END WHILE;
 
+  /*if there are exceptions, includes an EXCEPT() clause in the select statement, otherwise excludes it*/
+  IF varExceptColumnList != '' THEN
+    SET varCastSyntax = varCastSyntax || ' * EXCEPT(' || varExceptColumnList || ')';
+    ELSE SET varCastSyntax = varCastSyntax || ' * ';
+  END IF;
 
+  /*runs the query*/
   EXECUTE IMMEDIATE
   """CREATE OR REPLACE VIEW """ || argTargetDataset || """.""" || argTargetView || """ AS """
   ||""" SELECT """
   || varCastSyntax
-  ||""" * EXCEPT (""" || varExceptColumnList || """) """
+--  ||""" * EXCEPT (""" || varExceptColumnList || """) """
   ||"""FROM """ || argSourceDataset || """.""" || argTableName ||""";"""
   ;
 
