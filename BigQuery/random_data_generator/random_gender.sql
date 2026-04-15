@@ -1,4 +1,4 @@
-CREATE FUNCTION demo.random_gender() AS
+CREATE FUNCTION dpa.random_gender() AS
 ((
 SELECT
     CASE 
