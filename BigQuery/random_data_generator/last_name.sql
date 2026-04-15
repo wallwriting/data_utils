@@ -1,5 +1,5 @@
 
-CREATE OR REPLACE FUNCTION demo.last_name_generator()
+CREATE OR REPLACE FUNCTION dpa.last_name_generator()
 as
 (
     (
