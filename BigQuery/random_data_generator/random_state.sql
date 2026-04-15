@@ -1,4 +1,4 @@
-CREATE FUNCTION demo.random_state() AS
+CREATE FUNCTION dpa.random_state() AS
 ((
 SELECT 
     CASE 
