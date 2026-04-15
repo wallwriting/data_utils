@@ -1,407 +1,406 @@
 /*picks a random area code from a list--list is accurate as of 2026*/
-CREATE OR REPLACE FUNCTION dpa.random_area_code()
-as
-(
-    (
-        SELECT
-            np.area_code
-        FROM
+CREATE FUNCTION dpa.random_area_code() AS
+((
+SELECT 
+    CASE 
+        WHEN numval =	1	 THEN 	'201'
+        WHEN numval =	2	 THEN 	'202'
+        WHEN numval =	3	 THEN 	'203'
+        WHEN numval =	4	 THEN 	'204'
+        WHEN numval =	5	 THEN 	'205'
+        WHEN numval =	6	 THEN 	'206'
+        WHEN numval =	7	 THEN 	'207'
+        WHEN numval =	8	 THEN 	'208'
+        WHEN numval =	9	 THEN 	'209'
+        WHEN numval =	10	 THEN 	'210'
+        WHEN numval =	11	 THEN 	'211'
+        WHEN numval =	12	 THEN 	'212'
+        WHEN numval =	13	 THEN 	'213'
+        WHEN numval =	14	 THEN 	'214'
+        WHEN numval =	15	 THEN 	'215'
+        WHEN numval =	16	 THEN 	'216'
+        WHEN numval =	17	 THEN 	'217'
+        WHEN numval =	18	 THEN 	'218'
+        WHEN numval =	19	 THEN 	'219'
+        WHEN numval =	20	 THEN 	'224'
+        WHEN numval =	21	 THEN 	'225'
+        WHEN numval =	22	 THEN 	'228'
+        WHEN numval =	23	 THEN 	'229'
+        WHEN numval =	24	 THEN 	'231'
+        WHEN numval =	25	 THEN 	'234'
+        WHEN numval =	26	 THEN 	'236'
+        WHEN numval =	27	 THEN 	'239'
+        WHEN numval =	28	 THEN 	'240'
+        WHEN numval =	29	 THEN 	'242'
+        WHEN numval =	30	 THEN 	'246'
+        WHEN numval =	31	 THEN 	'248'
+        WHEN numval =	32	 THEN 	'249'
+        WHEN numval =	33	 THEN 	'250'
+        WHEN numval =	34	 THEN 	'251'
+        WHEN numval =	35	 THEN 	'252'
+        WHEN numval =	36	 THEN 	'253'
+        WHEN numval =	37	 THEN 	'254'
+        WHEN numval =	38	 THEN 	'256'
+        WHEN numval =	39	 THEN 	'260'
+        WHEN numval =	40	 THEN 	'262'
+        WHEN numval =	41	 THEN 	'264'
+        WHEN numval =	42	 THEN 	'267'
+        WHEN numval =	43	 THEN 	'268'
+        WHEN numval =	44	 THEN 	'269'
+        WHEN numval =	45	 THEN 	'270'
+        WHEN numval =	46	 THEN 	'276'
+        WHEN numval =	47	 THEN 	'278'
+        WHEN numval =	48	 THEN 	'280'
+        WHEN numval =	49	 THEN 	'281'
+        WHEN numval =	50	 THEN 	'282'
+        WHEN numval =	51	 THEN 	'283'
+        WHEN numval =	52	 THEN 	'284'
+        WHEN numval =	53	 THEN 	'289'
+        WHEN numval =	54	 THEN 	'301'
+        WHEN numval =	55	 THEN 	'302'
+        WHEN numval =	56	 THEN 	'303'
+        WHEN numval =	57	 THEN 	'304'
+        WHEN numval =	58	 THEN 	'305'
+        WHEN numval =	59	 THEN 	'306'
+        WHEN numval =	60	 THEN 	'307'
+        WHEN numval =	61	 THEN 	'308'
+        WHEN numval =	62	 THEN 	'309'
+        WHEN numval =	63	 THEN 	'310'
+        WHEN numval =	64	 THEN 	'311'
+        WHEN numval =	65	 THEN 	'312'
+        WHEN numval =	66	 THEN 	'313'
+        WHEN numval =	67	 THEN 	'314'
+        WHEN numval =	68	 THEN 	'315'
+        WHEN numval =	69	 THEN 	'316'
+        WHEN numval =	70	 THEN 	'317'
+        WHEN numval =	71	 THEN 	'318'
+        WHEN numval =	72	 THEN 	'319'
+        WHEN numval =	73	 THEN 	'320'
+        WHEN numval =	74	 THEN 	'321'
+        WHEN numval =	75	 THEN 	'323'
+        WHEN numval =	76	 THEN 	'325'
+        WHEN numval =	77	 THEN 	'327'
+        WHEN numval =	78	 THEN 	'330'
+        WHEN numval =	79	 THEN 	'331'
+        WHEN numval =	80	 THEN 	'334'
+        WHEN numval =	81	 THEN 	'336'
+        WHEN numval =	82	 THEN 	'337'
+        WHEN numval =	83	 THEN 	'339'
+        WHEN numval =	84	 THEN 	'340'
+        WHEN numval =	85	 THEN 	'341'
+        WHEN numval =	86	 THEN 	'345'
+        WHEN numval =	87	 THEN 	'347'
+        WHEN numval =	88	 THEN 	'351'
+        WHEN numval =	89	 THEN 	'352'
+        WHEN numval =	90	 THEN 	'353'
+        WHEN numval =	91	 THEN 	'354'
+        WHEN numval =	92	 THEN 	'358'
+        WHEN numval =	93	 THEN 	'360'
+        WHEN numval =	94	 THEN 	'361'
+        WHEN numval =	95	 THEN 	'369'
+        WHEN numval =	96	 THEN 	'380'
+        WHEN numval =	97	 THEN 	'381'
+        WHEN numval =	98	 THEN 	'383'
+        WHEN numval =	99	 THEN 	'385'
+        WHEN numval =	100	 THEN 	'386'
+        WHEN numval =	101	 THEN 	'401'
+        WHEN numval =	102	 THEN 	'402'
+        WHEN numval =	103	 THEN 	'403'
+        WHEN numval =	104	 THEN 	'404'
+        WHEN numval =	105	 THEN 	'405'
+        WHEN numval =	106	 THEN 	'406'
+        WHEN numval =	107	 THEN 	'407'
+        WHEN numval =	108	 THEN 	'408'
+        WHEN numval =	109	 THEN 	'409'
+        WHEN numval =	110	 THEN 	'410'
+        WHEN numval =	111	 THEN 	'411'
+        WHEN numval =	112	 THEN 	'412'
+        WHEN numval =	113	 THEN 	'413'
+        WHEN numval =	114	 THEN 	'414'
+        WHEN numval =	115	 THEN 	'415'
+        WHEN numval =	116	 THEN 	'416'
+        WHEN numval =	117	 THEN 	'417'
+        WHEN numval =	118	 THEN 	'418'
+        WHEN numval =	119	 THEN 	'419'
+        WHEN numval =	120	 THEN 	'420'
+        WHEN numval =	121	 THEN 	'423'
+        WHEN numval =	122	 THEN 	'424'
+        WHEN numval =	123	 THEN 	'425'
+        WHEN numval =	124	 THEN 	'430'
+        WHEN numval =	125	 THEN 	'432'
+        WHEN numval =	126	 THEN 	'434'
+        WHEN numval =	127	 THEN 	'435'
+        WHEN numval =	128	 THEN 	'438'
+        WHEN numval =	129	 THEN 	'440'
+        WHEN numval =	130	 THEN 	'441'
+        WHEN numval =	131	 THEN 	'442'
+        WHEN numval =	132	 THEN 	'443'
+        WHEN numval =	133	 THEN 	'445'
+        WHEN numval =	134	 THEN 	'450'
+        WHEN numval =	135	 THEN 	'456'
+        WHEN numval =	136	 THEN 	'464'
+        WHEN numval =	137	 THEN 	'469'
+        WHEN numval =	138	 THEN 	'470'
+        WHEN numval =	139	 THEN 	'473'
+        WHEN numval =	140	 THEN 	'475'
+        WHEN numval =	141	 THEN 	'478'
+        WHEN numval =	142	 THEN 	'479'
+        WHEN numval =	143	 THEN 	'480'
+        WHEN numval =	144	 THEN 	'484'
+        WHEN numval =	145	 THEN 	'500'
+        WHEN numval =	146	 THEN 	'501'
+        WHEN numval =	147	 THEN 	'502'
+        WHEN numval =	148	 THEN 	'503'
+        WHEN numval =	149	 THEN 	'504'
+        WHEN numval =	150	 THEN 	'505'
+        WHEN numval =	151	 THEN 	'506'
+        WHEN numval =	152	 THEN 	'507'
+        WHEN numval =	153	 THEN 	'508'
+        WHEN numval =	154	 THEN 	'509'
+        WHEN numval =	155	 THEN 	'510'
+        WHEN numval =	156	 THEN 	'511'
+        WHEN numval =	157	 THEN 	'512'
+        WHEN numval =	158	 THEN 	'513'
+        WHEN numval =	159	 THEN 	'514'
+        WHEN numval =	160	 THEN 	'515'
+        WHEN numval =	161	 THEN 	'516'
+        WHEN numval =	162	 THEN 	'517'
+        WHEN numval =	163	 THEN 	'518'
+        WHEN numval =	164	 THEN 	'519'
+        WHEN numval =	165	 THEN 	'520'
+        WHEN numval =	166	 THEN 	'530'
+        WHEN numval =	167	 THEN 	'540'
+        WHEN numval =	168	 THEN 	'541'
+        WHEN numval =	169	 THEN 	'546'
+        WHEN numval =	170	 THEN 	'551'
+        WHEN numval =	171	 THEN 	'555'
+        WHEN numval =	172	 THEN 	'557'
+        WHEN numval =	173	 THEN 	'559'
+        WHEN numval =	174	 THEN 	'561'
+        WHEN numval =	175	 THEN 	'562'
+        WHEN numval =	176	 THEN 	'563'
+        WHEN numval =	177	 THEN 	'564'
+        WHEN numval =	178	 THEN 	'567'
+        WHEN numval =	179	 THEN 	'570'
+        WHEN numval =	180	 THEN 	'571'
+        WHEN numval =	181	 THEN 	'573'
+        WHEN numval =	182	 THEN 	'574'
+        WHEN numval =	183	 THEN 	'580'
+        WHEN numval =	184	 THEN 	'585'
+        WHEN numval =	185	 THEN 	'586'
+        WHEN numval =	186	 THEN 	'590'
+        WHEN numval =	187	 THEN 	'600'
+        WHEN numval =	188	 THEN 	'601'
+        WHEN numval =	189	 THEN 	'602'
+        WHEN numval =	190	 THEN 	'603'
+        WHEN numval =	191	 THEN 	'604'
+        WHEN numval =	192	 THEN 	'605'
+        WHEN numval =	193	 THEN 	'606'
+        WHEN numval =	194	 THEN 	'607'
+        WHEN numval =	195	 THEN 	'608'
+        WHEN numval =	196	 THEN 	'609'
+        WHEN numval =	197	 THEN 	'610'
+        WHEN numval =	198	 THEN 	'611'
+        WHEN numval =	199	 THEN 	'612'
+        WHEN numval =	200	 THEN 	'613'
+        WHEN numval =	201	 THEN 	'614'
+        WHEN numval =	202	 THEN 	'615'
+        WHEN numval =	203	 THEN 	'616'
+        WHEN numval =	204	 THEN 	'617'
+        WHEN numval =	205	 THEN 	'618'
+        WHEN numval =	206	 THEN 	'619'
+        WHEN numval =	207	 THEN 	'620'
+        WHEN numval =	208	 THEN 	'623'
+        WHEN numval =	209	 THEN 	'626'
+        WHEN numval =	210	 THEN 	'627'
+        WHEN numval =	211	 THEN 	'628'
+        WHEN numval =	212	 THEN 	'630'
+        WHEN numval =	213	 THEN 	'631'
+        WHEN numval =	214	 THEN 	'636'
+        WHEN numval =	215	 THEN 	'641'
+        WHEN numval =	216	 THEN 	'646'
+        WHEN numval =	217	 THEN 	'647'
+        WHEN numval =	218	 THEN 	'649'
+        WHEN numval =	219	 THEN 	'650'
+        WHEN numval =	220	 THEN 	'651'
+        WHEN numval =	221	 THEN 	'657'
+        WHEN numval =	222	 THEN 	'660'
+        WHEN numval =	223	 THEN 	'661'
+        WHEN numval =	224	 THEN 	'662'
+        WHEN numval =	225	 THEN 	'664'
+        WHEN numval =	226	 THEN 	'669'
+        WHEN numval =	227	 THEN 	'670'
+        WHEN numval =	228	 THEN 	'671'
+        WHEN numval =	229	 THEN 	'678'
+        WHEN numval =	230	 THEN 	'679'
+        WHEN numval =	231	 THEN 	'682'
+        WHEN numval =	232	 THEN 	'684'
+        WHEN numval =	233	 THEN 	'689'
+        WHEN numval =	234	 THEN 	'700'
+        WHEN numval =	235	 THEN 	'701'
+        WHEN numval =	236	 THEN 	'702'
+        WHEN numval =	237	 THEN 	'703'
+        WHEN numval =	238	 THEN 	'704'
+        WHEN numval =	239	 THEN 	'705'
+        WHEN numval =	240	 THEN 	'706'
+        WHEN numval =	241	 THEN 	'707'
+        WHEN numval =	242	 THEN 	'708'
+        WHEN numval =	243	 THEN 	'709'
+        WHEN numval =	244	 THEN 	'710'
+        WHEN numval =	245	 THEN 	'711'
+        WHEN numval =	246	 THEN 	'712'
+        WHEN numval =	247	 THEN 	'713'
+        WHEN numval =	248	 THEN 	'714'
+        WHEN numval =	249	 THEN 	'715'
+        WHEN numval =	250	 THEN 	'716'
+        WHEN numval =	251	 THEN 	'717'
+        WHEN numval =	252	 THEN 	'718'
+        WHEN numval =	253	 THEN 	'719'
+        WHEN numval =	254	 THEN 	'720'
+        WHEN numval =	255	 THEN 	'724'
+        WHEN numval =	256	 THEN 	'727'
+        WHEN numval =	257	 THEN 	'731'
+        WHEN numval =	258	 THEN 	'732'
+        WHEN numval =	259	 THEN 	'734'
+        WHEN numval =	260	 THEN 	'737'
+        WHEN numval =	261	 THEN 	'740'
+        WHEN numval =	262	 THEN 	'747'
+        WHEN numval =	263	 THEN 	'752'
+        WHEN numval =	264	 THEN 	'754'
+        WHEN numval =	265	 THEN 	'757'
+        WHEN numval =	266	 THEN 	'758'
+        WHEN numval =	267	 THEN 	'760'
+        WHEN numval =	268	 THEN 	'763'
+        WHEN numval =	269	 THEN 	'764'
+        WHEN numval =	270	 THEN 	'765'
+        WHEN numval =	271	 THEN 	'767'
+        WHEN numval =	272	 THEN 	'770'
+        WHEN numval =	273	 THEN 	'772'
+        WHEN numval =	274	 THEN 	'773'
+        WHEN numval =	275	 THEN 	'774'
+        WHEN numval =	276	 THEN 	'775'
+        WHEN numval =	277	 THEN 	'778'
+        WHEN numval =	278	 THEN 	'780'
+        WHEN numval =	279	 THEN 	'781'
+        WHEN numval =	280	 THEN 	'784'
+        WHEN numval =	281	 THEN 	'785'
+        WHEN numval =	282	 THEN 	'786'
+        WHEN numval =	283	 THEN 	'787'
+        WHEN numval =	284	 THEN 	'800'
+        WHEN numval =	285	 THEN 	'801'
+        WHEN numval =	286	 THEN 	'802'
+        WHEN numval =	287	 THEN 	'803'
+        WHEN numval =	288	 THEN 	'804'
+        WHEN numval =	289	 THEN 	'805'
+        WHEN numval =	290	 THEN 	'806'
+        WHEN numval =	291	 THEN 	'807'
+        WHEN numval =	292	 THEN 	'808'
+        WHEN numval =	293	 THEN 	'809'
+        WHEN numval =	294	 THEN 	'810'
+        WHEN numval =	295	 THEN 	'811'
+        WHEN numval =	296	 THEN 	'812'
+        WHEN numval =	297	 THEN 	'813'
+        WHEN numval =	298	 THEN 	'814'
+        WHEN numval =	299	 THEN 	'815'
+        WHEN numval =	300	 THEN 	'816'
+        WHEN numval =	301	 THEN 	'817'
+        WHEN numval =	302	 THEN 	'818'
+        WHEN numval =	303	 THEN 	'819'
+        WHEN numval =	304	 THEN 	'822'
+        WHEN numval =	305	 THEN 	'828'
+        WHEN numval =	306	 THEN 	'830'
+        WHEN numval =	307	 THEN 	'831'
+        WHEN numval =	308	 THEN 	'832'
+        WHEN numval =	309	 THEN 	'833'
+        WHEN numval =	310	 THEN 	'835'
+        WHEN numval =	311	 THEN 	'836'
+        WHEN numval =	312	 THEN 	'843'
+        WHEN numval =	313	 THEN 	'844'
+        WHEN numval =	314	 THEN 	'845'
+        WHEN numval =	315	 THEN 	'847'
+        WHEN numval =	316	 THEN 	'848'
+        WHEN numval =	317	 THEN 	'850'
+        WHEN numval =	318	 THEN 	'855'
+        WHEN numval =	319	 THEN 	'856'
+        WHEN numval =	320	 THEN 	'857'
+        WHEN numval =	321	 THEN 	'858'
+        WHEN numval =	322	 THEN 	'859'
+        WHEN numval =	323	 THEN 	'860'
+        WHEN numval =	324	 THEN 	'861'
+        WHEN numval =	325	 THEN 	'862'
+        WHEN numval =	326	 THEN 	'863'
+        WHEN numval =	327	 THEN 	'864'
+        WHEN numval =	328	 THEN 	'865'
+        WHEN numval =	329	 THEN 	'866'
+        WHEN numval =	330	 THEN 	'867'
+        WHEN numval =	331	 THEN 	'868'
+        WHEN numval =	332	 THEN 	'869'
+        WHEN numval =	333	 THEN 	'870'
+        WHEN numval =	334	 THEN 	'872'
+        WHEN numval =	335	 THEN 	'876'
+        WHEN numval =	336	 THEN 	'877'
+        WHEN numval =	337	 THEN 	'878'
+        WHEN numval =	338	 THEN 	'880'
+        WHEN numval =	339	 THEN 	'881'
+        WHEN numval =	340	 THEN 	'882'
+        WHEN numval =	341	 THEN 	'888'
+        WHEN numval =	342	 THEN 	'900'
+        WHEN numval =	343	 THEN 	'901'
+        WHEN numval =	344	 THEN 	'902'
+        WHEN numval =	345	 THEN 	'903'
+        WHEN numval =	346	 THEN 	'904'
+        WHEN numval =	347	 THEN 	'905'
+        WHEN numval =	348	 THEN 	'906'
+        WHEN numval =	349	 THEN 	'907'
+        WHEN numval =	350	 THEN 	'908'
+        WHEN numval =	351	 THEN 	'909'
+        WHEN numval =	352	 THEN 	'910'
+        WHEN numval =	353	 THEN 	'911'
+        WHEN numval =	354	 THEN 	'912'
+        WHEN numval =	355	 THEN 	'913'
+        WHEN numval =	356	 THEN 	'914'
+        WHEN numval =	357	 THEN 	'915'
+        WHEN numval =	358	 THEN 	'916'
+        WHEN numval =	359	 THEN 	'917'
+        WHEN numval =	360	 THEN 	'918'
+        WHEN numval =	361	 THEN 	'919'
+        WHEN numval =	362	 THEN 	'920'
+        WHEN numval =	363	 THEN 	'925'
+        WHEN numval =	364	 THEN 	'928'
+        WHEN numval =	365	 THEN 	'931'
+        WHEN numval =	366	 THEN 	'935'
+        WHEN numval =	367	 THEN 	'936'
+        WHEN numval =	368	 THEN 	'937'
+        WHEN numval =	369	 THEN 	'939'
+        WHEN numval =	370	 THEN 	'940'
+        WHEN numval =	371	 THEN 	'941'
+        WHEN numval =	372	 THEN 	'947'
+        WHEN numval =	373	 THEN 	'949'
+        WHEN numval =	374	 THEN 	'951'
+        WHEN numval =	375	 THEN 	'952'
+        WHEN numval =	376	 THEN 	'954'
+        WHEN numval =	377	 THEN 	'956'
+        WHEN numval =	378	 THEN 	'957'
+        WHEN numval =	379	 THEN 	'959'
+        WHEN numval =	380	 THEN 	'969'
+        WHEN numval =	381	 THEN 	'970'
+        WHEN numval =	382	 THEN 	'971'
+        WHEN numval =	383	 THEN 	'972'
+        WHEN numval =	384	 THEN 	'973'
+        WHEN numval =	385	 THEN 	'975'
+        WHEN numval =	386	 THEN 	'976'
+        WHEN numval =	387	 THEN 	'978'
+        WHEN numval =	388	 THEN 	'979'
+        WHEN numval =	389	 THEN 	'980'
+        WHEN numval =	390	 THEN 	'984'
+        WHEN numval =	391	 THEN 	'985'
+        WHEN numval =	392	 THEN 	'989'
+        WHEN numval =	393	 THEN 	'999'
+        END
+FROM 
             (
-                SELECT '201' AS area_code UNION ALL
-                SELECT '202' UNION ALL
-                SELECT '203' UNION ALL
-                SELECT '204' UNION ALL
-                SELECT '205' UNION ALL
-                SELECT '206' UNION ALL
-                SELECT '207' UNION ALL
-                SELECT '208' UNION ALL
-                SELECT '209' UNION ALL
-                SELECT '210' UNION ALL
-                SELECT '211' UNION ALL
-                SELECT '212' UNION ALL
-                SELECT '213' UNION ALL
-                SELECT '214' UNION ALL
-                SELECT '215' UNION ALL
-                SELECT '216' UNION ALL
-                SELECT '217' UNION ALL
-                SELECT '218' UNION ALL
-                SELECT '219' UNION ALL
-                SELECT '224' UNION ALL
-                SELECT '225' UNION ALL
-                SELECT '228' UNION ALL
-                SELECT '229' UNION ALL
-                SELECT '231' UNION ALL
-                SELECT '234' UNION ALL
-                SELECT '236' UNION ALL
-                SELECT '239' UNION ALL
-                SELECT '240' UNION ALL
-                SELECT '242' UNION ALL
-                SELECT '246' UNION ALL
-                SELECT '248' UNION ALL
-                SELECT '249' UNION ALL
-                SELECT '250' UNION ALL
-                SELECT '251' UNION ALL
-                SELECT '252' UNION ALL
-                SELECT '253' UNION ALL
-                SELECT '254' UNION ALL
-                SELECT '256' UNION ALL
-                SELECT '260' UNION ALL
-                SELECT '262' UNION ALL
-                SELECT '264' UNION ALL
-                SELECT '267' UNION ALL
-                SELECT '268' UNION ALL
-                SELECT '269' UNION ALL
-                SELECT '270' UNION ALL
-                SELECT '276' UNION ALL
-                SELECT '278' UNION ALL
-                SELECT '280' UNION ALL
-                SELECT '281' UNION ALL
-                SELECT '282' UNION ALL
-                SELECT '283' UNION ALL
-                SELECT '284' UNION ALL
-                SELECT '289' UNION ALL
-                SELECT '301' UNION ALL
-                SELECT '302' UNION ALL
-                SELECT '303' UNION ALL
-                SELECT '304' UNION ALL
-                SELECT '305' UNION ALL
-                SELECT '306' UNION ALL
-                SELECT '307' UNION ALL
-                SELECT '308' UNION ALL
-                SELECT '309' UNION ALL
-                SELECT '310' UNION ALL
-                SELECT '311' UNION ALL
-                SELECT '312' UNION ALL
-                SELECT '313' UNION ALL
-                SELECT '314' UNION ALL
-                SELECT '315' UNION ALL
-                SELECT '316' UNION ALL
-                SELECT '317' UNION ALL
-                SELECT '318' UNION ALL
-                SELECT '319' UNION ALL
-                SELECT '320' UNION ALL
-                SELECT '321' UNION ALL
-                SELECT '323' UNION ALL
-                SELECT '325' UNION ALL
-                SELECT '327' UNION ALL
-                SELECT '330' UNION ALL
-                SELECT '331' UNION ALL
-                SELECT '334' UNION ALL
-                SELECT '336' UNION ALL
-                SELECT '337' UNION ALL
-                SELECT '339' UNION ALL
-                SELECT '340' UNION ALL
-                SELECT '341' UNION ALL
-                SELECT '345' UNION ALL
-                SELECT '347' UNION ALL
-                SELECT '351' UNION ALL
-                SELECT '352' UNION ALL
-                SELECT '353' UNION ALL
-                SELECT '354' UNION ALL
-                SELECT '358' UNION ALL
-                SELECT '360' UNION ALL
-                SELECT '361' UNION ALL
-                SELECT '369' UNION ALL
-                SELECT '380' UNION ALL
-                SELECT '381' UNION ALL
-                SELECT '383' UNION ALL
-                SELECT '385' UNION ALL
-                SELECT '386' UNION ALL
-                SELECT '401' UNION ALL
-                SELECT '402' UNION ALL
-                SELECT '403' UNION ALL
-                SELECT '404' UNION ALL
-                SELECT '405' UNION ALL
-                SELECT '406' UNION ALL
-                SELECT '407' UNION ALL
-                SELECT '408' UNION ALL
-                SELECT '409' UNION ALL
-                SELECT '410' UNION ALL
-                SELECT '411' UNION ALL
-                SELECT '412' UNION ALL
-                SELECT '413' UNION ALL
-                SELECT '414' UNION ALL
-                SELECT '415' UNION ALL
-                SELECT '416' UNION ALL
-                SELECT '417' UNION ALL
-                SELECT '418' UNION ALL
-                SELECT '419' UNION ALL
-                SELECT '420' UNION ALL
-                SELECT '423' UNION ALL
-                SELECT '424' UNION ALL
-                SELECT '425' UNION ALL
-                SELECT '430' UNION ALL
-                SELECT '432' UNION ALL
-                SELECT '434' UNION ALL
-                SELECT '435' UNION ALL
-                SELECT '438' UNION ALL
-                SELECT '440' UNION ALL
-                SELECT '441' UNION ALL
-                SELECT '442' UNION ALL
-                SELECT '443' UNION ALL
-                SELECT '445' UNION ALL
-                SELECT '450' UNION ALL
-                SELECT '456' UNION ALL
-                SELECT '464' UNION ALL
-                SELECT '469' UNION ALL
-                SELECT '470' UNION ALL
-                SELECT '473' UNION ALL
-                SELECT '475' UNION ALL
-                SELECT '478' UNION ALL
-                SELECT '479' UNION ALL
-                SELECT '480' UNION ALL
-                SELECT '484' UNION ALL
-                SELECT '500' UNION ALL
-                SELECT '501' UNION ALL
-                SELECT '502' UNION ALL
-                SELECT '503' UNION ALL
-                SELECT '504' UNION ALL
-                SELECT '505' UNION ALL
-                SELECT '506' UNION ALL
-                SELECT '507' UNION ALL
-                SELECT '508' UNION ALL
-                SELECT '509' UNION ALL
-                SELECT '510' UNION ALL
-                SELECT '511' UNION ALL
-                SELECT '512' UNION ALL
-                SELECT '513' UNION ALL
-                SELECT '514' UNION ALL
-                SELECT '515' UNION ALL
-                SELECT '516' UNION ALL
-                SELECT '517' UNION ALL
-                SELECT '518' UNION ALL
-                SELECT '519' UNION ALL
-                SELECT '520' UNION ALL
-                SELECT '530' UNION ALL
-                SELECT '540' UNION ALL
-                SELECT '541' UNION ALL
-                SELECT '546' UNION ALL
-                SELECT '551' UNION ALL
-                SELECT '555' UNION ALL
-                SELECT '557' UNION ALL
-                SELECT '559' UNION ALL
-                SELECT '561' UNION ALL
-                SELECT '562' UNION ALL
-                SELECT '563' UNION ALL
-                SELECT '564' UNION ALL
-                SELECT '567' UNION ALL
-                SELECT '570' UNION ALL
-                SELECT '571' UNION ALL
-                SELECT '573' UNION ALL
-                SELECT '574' UNION ALL
-                SELECT '580' UNION ALL
-                SELECT '585' UNION ALL
-                SELECT '586' UNION ALL
-                SELECT '590' UNION ALL
-                SELECT '600' UNION ALL
-                SELECT '601' UNION ALL
-                SELECT '602' UNION ALL
-                SELECT '603' UNION ALL
-                SELECT '604' UNION ALL
-                SELECT '605' UNION ALL
-                SELECT '606' UNION ALL
-                SELECT '607' UNION ALL
-                SELECT '608' UNION ALL
-                SELECT '609' UNION ALL
-                SELECT '610' UNION ALL
-                SELECT '611' UNION ALL
-                SELECT '612' UNION ALL
-                SELECT '613' UNION ALL
-                SELECT '614' UNION ALL
-                SELECT '615' UNION ALL
-                SELECT '616' UNION ALL
-                SELECT '617' UNION ALL
-                SELECT '618' UNION ALL
-                SELECT '619' UNION ALL
-                SELECT '620' UNION ALL
-                SELECT '623' UNION ALL
-                SELECT '626' UNION ALL
-                SELECT '627' UNION ALL
-                SELECT '628' UNION ALL
-                SELECT '630' UNION ALL
-                SELECT '631' UNION ALL
-                SELECT '636' UNION ALL
-                SELECT '641' UNION ALL
-                SELECT '646' UNION ALL
-                SELECT '647' UNION ALL
-                SELECT '649' UNION ALL
-                SELECT '650' UNION ALL
-                SELECT '651' UNION ALL
-                SELECT '657' UNION ALL
-                SELECT '660' UNION ALL
-                SELECT '661' UNION ALL
-                SELECT '662' UNION ALL
-                SELECT '664' UNION ALL
-                SELECT '669' UNION ALL
-                SELECT '670' UNION ALL
-                SELECT '671' UNION ALL
-                SELECT '678' UNION ALL
-                SELECT '679' UNION ALL
-                SELECT '682' UNION ALL
-                SELECT '684' UNION ALL
-                SELECT '689' UNION ALL
-                SELECT '700' UNION ALL
-                SELECT '701' UNION ALL
-                SELECT '702' UNION ALL
-                SELECT '703' UNION ALL
-                SELECT '704' UNION ALL
-                SELECT '705' UNION ALL
-                SELECT '706' UNION ALL
-                SELECT '707' UNION ALL
-                SELECT '708' UNION ALL
-                SELECT '709' UNION ALL
-                SELECT '710' UNION ALL
-                SELECT '711' UNION ALL
-                SELECT '712' UNION ALL
-                SELECT '713' UNION ALL
-                SELECT '714' UNION ALL
-                SELECT '715' UNION ALL
-                SELECT '716' UNION ALL
-                SELECT '717' UNION ALL
-                SELECT '718' UNION ALL
-                SELECT '719' UNION ALL
-                SELECT '720' UNION ALL
-                SELECT '724' UNION ALL
-                SELECT '727' UNION ALL
-                SELECT '731' UNION ALL
-                SELECT '732' UNION ALL
-                SELECT '734' UNION ALL
-                SELECT '737' UNION ALL
-                SELECT '740' UNION ALL
-                SELECT '747' UNION ALL
-                SELECT '752' UNION ALL
-                SELECT '754' UNION ALL
-                SELECT '757' UNION ALL
-                SELECT '758' UNION ALL
-                SELECT '760' UNION ALL
-                SELECT '763' UNION ALL
-                SELECT '764' UNION ALL
-                SELECT '765' UNION ALL
-                SELECT '767' UNION ALL
-                SELECT '770' UNION ALL
-                SELECT '772' UNION ALL
-                SELECT '773' UNION ALL
-                SELECT '774' UNION ALL
-                SELECT '775' UNION ALL
-                SELECT '778' UNION ALL
-                SELECT '780' UNION ALL
-                SELECT '781' UNION ALL
-                SELECT '784' UNION ALL
-                SELECT '785' UNION ALL
-                SELECT '786' UNION ALL
-                SELECT '787' UNION ALL
-                SELECT '800' UNION ALL
-                SELECT '801' UNION ALL
-                SELECT '802' UNION ALL
-                SELECT '803' UNION ALL
-                SELECT '804' UNION ALL
-                SELECT '805' UNION ALL
-                SELECT '806' UNION ALL
-                SELECT '807' UNION ALL
-                SELECT '808' UNION ALL
-                SELECT '809' UNION ALL
-                SELECT '810' UNION ALL
-                SELECT '811' UNION ALL
-                SELECT '812' UNION ALL
-                SELECT '813' UNION ALL
-                SELECT '814' UNION ALL
-                SELECT '815' UNION ALL
-                SELECT '816' UNION ALL
-                SELECT '817' UNION ALL
-                SELECT '818' UNION ALL
-                SELECT '819' UNION ALL
-                SELECT '822' UNION ALL
-                SELECT '828' UNION ALL
-                SELECT '830' UNION ALL
-                SELECT '831' UNION ALL
-                SELECT '832' UNION ALL
-                SELECT '833' UNION ALL
-                SELECT '835' UNION ALL
-                SELECT '836' UNION ALL
-                SELECT '843' UNION ALL
-                SELECT '844' UNION ALL
-                SELECT '845' UNION ALL
-                SELECT '847' UNION ALL
-                SELECT '848' UNION ALL
-                SELECT '850' UNION ALL
-                SELECT '855' UNION ALL
-                SELECT '856' UNION ALL
-                SELECT '857' UNION ALL
-                SELECT '858' UNION ALL
-                SELECT '859' UNION ALL
-                SELECT '860' UNION ALL
-                SELECT '861' UNION ALL
-                SELECT '862' UNION ALL
-                SELECT '863' UNION ALL
-                SELECT '864' UNION ALL
-                SELECT '865' UNION ALL
-                SELECT '866' UNION ALL
-                SELECT '867' UNION ALL
-                SELECT '868' UNION ALL
-                SELECT '869' UNION ALL
-                SELECT '870' UNION ALL
-                SELECT '872' UNION ALL
-                SELECT '876' UNION ALL
-                SELECT '877' UNION ALL
-                SELECT '878' UNION ALL
-                SELECT '880' UNION ALL
-                SELECT '881' UNION ALL
-                SELECT '882' UNION ALL
-                SELECT '888' UNION ALL
-                SELECT '900' UNION ALL
-                SELECT '901' UNION ALL
-                SELECT '902' UNION ALL
-                SELECT '903' UNION ALL
-                SELECT '904' UNION ALL
-                SELECT '905' UNION ALL
-                SELECT '906' UNION ALL
-                SELECT '907' UNION ALL
-                SELECT '908' UNION ALL
-                SELECT '909' UNION ALL
-                SELECT '910' UNION ALL
-                SELECT '911' UNION ALL
-                SELECT '912' UNION ALL
-                SELECT '913' UNION ALL
-                SELECT '914' UNION ALL
-                SELECT '915' UNION ALL
-                SELECT '916' UNION ALL
-                SELECT '917' UNION ALL
-                SELECT '918' UNION ALL
-                SELECT '919' UNION ALL
-                SELECT '920' UNION ALL
-                SELECT '925' UNION ALL
-                SELECT '928' UNION ALL
-                SELECT '931' UNION ALL
-                SELECT '935' UNION ALL
-                SELECT '936' UNION ALL
-                SELECT '937' UNION ALL
-                SELECT '939' UNION ALL
-                SELECT '940' UNION ALL
-                SELECT '941' UNION ALL
-                SELECT '947' UNION ALL
-                SELECT '949' UNION ALL
-                SELECT '951' UNION ALL
-                SELECT '952' UNION ALL
-                SELECT '954' UNION ALL
-                SELECT '956' UNION ALL
-                SELECT '957' UNION ALL
-                SELECT '959' UNION ALL
-                SELECT '969' UNION ALL
-                SELECT '970' UNION ALL
-                SELECT '971' UNION ALL
-                SELECT '972' UNION ALL
-                SELECT '973' UNION ALL
-                SELECT '975' UNION ALL
-                SELECT '976' UNION ALL
-                SELECT '978' UNION ALL
-                SELECT '979' UNION ALL
-                SELECT '980' UNION ALL
-                SELECT '984' UNION ALL
-                SELECT '985' UNION ALL
-                SELECT '989' UNION ALL
-                SELECT '999'
-            ) np
-            ORDER BY RAND()
-            LIMIT 1
-    )
-)
+                SELECT 
+                    CAST(RAND() * (393 - 1) + 1 AS INT64) AS numval
+            )
+))        
+;
