@@ -1,5 +1,5 @@
 /*creates random ssn that will not be a valid value according to rules in the year 2020*/
-CREATE OR REPLACE function demo.random_ssn()
+CREATE OR REPLACE function dpa.random_ssn()
 as
 (
     (
