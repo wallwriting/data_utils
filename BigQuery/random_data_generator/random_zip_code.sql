@@ -1,5 +1,5 @@
 /*creates zip codes. Full rules are not enforced other than the starting number of 00500*/
-CREATE OR REPLACE FUNCTION demo.random_zip_code()
+CREATE OR REPLACE FUNCTION dpa.random_zip_code()
 as
 
 (
