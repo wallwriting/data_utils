@@ -1,6 +1,6 @@
 /*creates random birthdate weighted by US national average age bands.
 Derived ages are based on current year. Min age is 1 and max age is 90*/
-CREATE OR REPLACE FUNCTION test.random_birthdate() AS
+CREATE OR REPLACE FUNCTION dpa.random_birthdate() AS
 (
     (
         WITH 
