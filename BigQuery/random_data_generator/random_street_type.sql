@@ -1,5 +1,5 @@
 /*creates a randomly select street type. The weights are arbitrary*/
-CREATE FUNCTION test.random_street_type() AS
+CREATE FUNCTION dpa.random_street_type() AS
 (
     (
         SELECT
