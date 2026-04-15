@@ -1,523 +1,522 @@
 /*picks a random iso language code--list is accurate as of 2026*/
-CREATE OR REPLACE FUNCTION dpa.random_language_code()
-as
-(
-    (
-        SELECT
-            np.language_code
-        FROM
+CREATE FUNCTION dpa.random_language_code() AS
+((
+SELECT 
+    CASE 
+        WHEN numval =	1	 THEN 	'aar'
+        WHEN numval =	2	 THEN 	'abk'
+        WHEN numval =	3	 THEN 	'ace'
+        WHEN numval =	4	 THEN 	'ach'
+        WHEN numval =	5	 THEN 	'ada'
+        WHEN numval =	6	 THEN 	'ady'
+        WHEN numval =	7	 THEN 	'afa'
+        WHEN numval =	8	 THEN 	'afh'
+        WHEN numval =	9	 THEN 	'afr'
+        WHEN numval =	10	 THEN 	'ain'
+        WHEN numval =	11	 THEN 	'aka'
+        WHEN numval =	12	 THEN 	'akk'
+        WHEN numval =	13	 THEN 	'alb'
+        WHEN numval =	14	 THEN 	'ale'
+        WHEN numval =	15	 THEN 	'alg'
+        WHEN numval =	16	 THEN 	'alt'
+        WHEN numval =	17	 THEN 	'amh'
+        WHEN numval =	18	 THEN 	'ang'
+        WHEN numval =	19	 THEN 	'anp'
+        WHEN numval =	20	 THEN 	'apa'
+        WHEN numval =	21	 THEN 	'ara'
+        WHEN numval =	22	 THEN 	'arc'
+        WHEN numval =	23	 THEN 	'arg'
+        WHEN numval =	24	 THEN 	'arm'
+        WHEN numval =	25	 THEN 	'arn'
+        WHEN numval =	26	 THEN 	'arp'
+        WHEN numval =	27	 THEN 	'art'
+        WHEN numval =	28	 THEN 	'arw'
+        WHEN numval =	29	 THEN 	'asm'
+        WHEN numval =	30	 THEN 	'ast'
+        WHEN numval =	31	 THEN 	'ath'
+        WHEN numval =	32	 THEN 	'aus'
+        WHEN numval =	33	 THEN 	'ava'
+        WHEN numval =	34	 THEN 	'ave'
+        WHEN numval =	35	 THEN 	'awa'
+        WHEN numval =	36	 THEN 	'aym'
+        WHEN numval =	37	 THEN 	'aze'
+        WHEN numval =	38	 THEN 	'bad'
+        WHEN numval =	39	 THEN 	'bai'
+        WHEN numval =	40	 THEN 	'bak'
+        WHEN numval =	41	 THEN 	'bal'
+        WHEN numval =	42	 THEN 	'bam'
+        WHEN numval =	43	 THEN 	'ban'
+        WHEN numval =	44	 THEN 	'baq'
+        WHEN numval =	45	 THEN 	'bas'
+        WHEN numval =	46	 THEN 	'bat'
+        WHEN numval =	47	 THEN 	'bej'
+        WHEN numval =	48	 THEN 	'bel'
+        WHEN numval =	49	 THEN 	'bem'
+        WHEN numval =	50	 THEN 	'ben'
+        WHEN numval =	51	 THEN 	'ber'
+        WHEN numval =	52	 THEN 	'bho'
+        WHEN numval =	53	 THEN 	'bih'
+        WHEN numval =	54	 THEN 	'bik'
+        WHEN numval =	55	 THEN 	'bin'
+        WHEN numval =	56	 THEN 	'bis'
+        WHEN numval =	57	 THEN 	'bla'
+        WHEN numval =	58	 THEN 	'bnt'
+        WHEN numval =	59	 THEN 	'bod'
+        WHEN numval =	60	 THEN 	'bos'
+        WHEN numval =	61	 THEN 	'bra'
+        WHEN numval =	62	 THEN 	'bre'
+        WHEN numval =	63	 THEN 	'btk'
+        WHEN numval =	64	 THEN 	'bua'
+        WHEN numval =	65	 THEN 	'bug'
+        WHEN numval =	66	 THEN 	'bul'
+        WHEN numval =	67	 THEN 	'bur'
+        WHEN numval =	68	 THEN 	'byn'
+        WHEN numval =	69	 THEN 	'cad'
+        WHEN numval =	70	 THEN 	'cai'
+        WHEN numval =	71	 THEN 	'car'
+        WHEN numval =	72	 THEN 	'cat'
+        WHEN numval =	73	 THEN 	'cau'
+        WHEN numval =	74	 THEN 	'ceb'
+        WHEN numval =	75	 THEN 	'cel'
+        WHEN numval =	76	 THEN 	'ces'
+        WHEN numval =	77	 THEN 	'cha'
+        WHEN numval =	78	 THEN 	'chb'
+        WHEN numval =	79	 THEN 	'che'
+        WHEN numval =	80	 THEN 	'chg'
+        WHEN numval =	81	 THEN 	'chi'
+        WHEN numval =	82	 THEN 	'chk'
+        WHEN numval =	83	 THEN 	'chm'
+        WHEN numval =	84	 THEN 	'chn'
+        WHEN numval =	85	 THEN 	'cho'
+        WHEN numval =	86	 THEN 	'chp'
+        WHEN numval =	87	 THEN 	'chr'
+        WHEN numval =	88	 THEN 	'chu'
+        WHEN numval =	89	 THEN 	'chv'
+        WHEN numval =	90	 THEN 	'chy'
+        WHEN numval =	91	 THEN 	'cmc'
+        WHEN numval =	92	 THEN 	'cnr'
+        WHEN numval =	93	 THEN 	'cop'
+        WHEN numval =	94	 THEN 	'cor'
+        WHEN numval =	95	 THEN 	'cos'
+        WHEN numval =	96	 THEN 	'cpe'
+        WHEN numval =	97	 THEN 	'cpf'
+        WHEN numval =	98	 THEN 	'cpp'
+        WHEN numval =	99	 THEN 	'cre'
+        WHEN numval =	100	 THEN 	'crh'
+        WHEN numval =	101	 THEN 	'crp'
+        WHEN numval =	102	 THEN 	'csb'
+        WHEN numval =	103	 THEN 	'cus'
+        WHEN numval =	104	 THEN 	'cym'
+        WHEN numval =	105	 THEN 	'cze'
+        WHEN numval =	106	 THEN 	'dak'
+        WHEN numval =	107	 THEN 	'dan'
+        WHEN numval =	108	 THEN 	'dar'
+        WHEN numval =	109	 THEN 	'day'
+        WHEN numval =	110	 THEN 	'del'
+        WHEN numval =	111	 THEN 	'den'
+        WHEN numval =	112	 THEN 	'deu'
+        WHEN numval =	113	 THEN 	'dgr'
+        WHEN numval =	114	 THEN 	'din'
+        WHEN numval =	115	 THEN 	'div'
+        WHEN numval =	116	 THEN 	'doi'
+        WHEN numval =	117	 THEN 	'dra'
+        WHEN numval =	118	 THEN 	'dsb'
+        WHEN numval =	119	 THEN 	'dua'
+        WHEN numval =	120	 THEN 	'dum'
+        WHEN numval =	121	 THEN 	'dut'
+        WHEN numval =	122	 THEN 	'dyu'
+        WHEN numval =	123	 THEN 	'dzo'
+        WHEN numval =	124	 THEN 	'efi'
+        WHEN numval =	125	 THEN 	'egy'
+        WHEN numval =	126	 THEN 	'eka'
+        WHEN numval =	127	 THEN 	'ell'
+        WHEN numval =	128	 THEN 	'elx'
+        WHEN numval =	129	 THEN 	'eng'
+        WHEN numval =	130	 THEN 	'enm'
+        WHEN numval =	131	 THEN 	'epo'
+        WHEN numval =	132	 THEN 	'est'
+        WHEN numval =	133	 THEN 	'eus'
+        WHEN numval =	134	 THEN 	'ewe'
+        WHEN numval =	135	 THEN 	'ewo'
+        WHEN numval =	136	 THEN 	'fan'
+        WHEN numval =	137	 THEN 	'fao'
+        WHEN numval =	138	 THEN 	'fas'
+        WHEN numval =	139	 THEN 	'fat'
+        WHEN numval =	140	 THEN 	'fij'
+        WHEN numval =	141	 THEN 	'fil'
+        WHEN numval =	142	 THEN 	'fin'
+        WHEN numval =	143	 THEN 	'fiu'
+        WHEN numval =	144	 THEN 	'fon'
+        WHEN numval =	145	 THEN 	'fra'
+        WHEN numval =	146	 THEN 	'fre'
+        WHEN numval =	147	 THEN 	'frm'
+        WHEN numval =	148	 THEN 	'fro'
+        WHEN numval =	149	 THEN 	'frr'
+        WHEN numval =	150	 THEN 	'frs'
+        WHEN numval =	151	 THEN 	'fry'
+        WHEN numval =	152	 THEN 	'ful'
+        WHEN numval =	153	 THEN 	'fur'
+        WHEN numval =	154	 THEN 	'gaa'
+        WHEN numval =	155	 THEN 	'gay'
+        WHEN numval =	156	 THEN 	'gba'
+        WHEN numval =	157	 THEN 	'gem'
+        WHEN numval =	158	 THEN 	'geo'
+        WHEN numval =	159	 THEN 	'ger'
+        WHEN numval =	160	 THEN 	'gez'
+        WHEN numval =	161	 THEN 	'gil'
+        WHEN numval =	162	 THEN 	'gla'
+        WHEN numval =	163	 THEN 	'gle'
+        WHEN numval =	164	 THEN 	'glg'
+        WHEN numval =	165	 THEN 	'glv'
+        WHEN numval =	166	 THEN 	'gmh'
+        WHEN numval =	167	 THEN 	'goh'
+        WHEN numval =	168	 THEN 	'gon'
+        WHEN numval =	169	 THEN 	'gor'
+        WHEN numval =	170	 THEN 	'got'
+        WHEN numval =	171	 THEN 	'grb'
+        WHEN numval =	172	 THEN 	'grc'
+        WHEN numval =	173	 THEN 	'gre'
+        WHEN numval =	174	 THEN 	'grn'
+        WHEN numval =	175	 THEN 	'gsw'
+        WHEN numval =	176	 THEN 	'guj'
+        WHEN numval =	177	 THEN 	'gwi'
+        WHEN numval =	178	 THEN 	'hai'
+        WHEN numval =	179	 THEN 	'hat'
+        WHEN numval =	180	 THEN 	'hau'
+        WHEN numval =	181	 THEN 	'haw'
+        WHEN numval =	182	 THEN 	'heb'
+        WHEN numval =	183	 THEN 	'her'
+        WHEN numval =	184	 THEN 	'hil'
+        WHEN numval =	185	 THEN 	'him'
+        WHEN numval =	186	 THEN 	'hin'
+        WHEN numval =	187	 THEN 	'hit'
+        WHEN numval =	188	 THEN 	'hmn'
+        WHEN numval =	189	 THEN 	'hmo'
+        WHEN numval =	190	 THEN 	'hrv'
+        WHEN numval =	191	 THEN 	'hsb'
+        WHEN numval =	192	 THEN 	'hun'
+        WHEN numval =	193	 THEN 	'hup'
+        WHEN numval =	194	 THEN 	'hye'
+        WHEN numval =	195	 THEN 	'iba'
+        WHEN numval =	196	 THEN 	'ibo'
+        WHEN numval =	197	 THEN 	'ice'
+        WHEN numval =	198	 THEN 	'ido'
+        WHEN numval =	199	 THEN 	'iii'
+        WHEN numval =	200	 THEN 	'ijo'
+        WHEN numval =	201	 THEN 	'iku'
+        WHEN numval =	202	 THEN 	'ile'
+        WHEN numval =	203	 THEN 	'ilo'
+        WHEN numval =	204	 THEN 	'ina'
+        WHEN numval =	205	 THEN 	'inc'
+        WHEN numval =	206	 THEN 	'ind'
+        WHEN numval =	207	 THEN 	'ine'
+        WHEN numval =	208	 THEN 	'inh'
+        WHEN numval =	209	 THEN 	'ipk'
+        WHEN numval =	210	 THEN 	'ira'
+        WHEN numval =	211	 THEN 	'iro'
+        WHEN numval =	212	 THEN 	'isl'
+        WHEN numval =	213	 THEN 	'ita'
+        WHEN numval =	214	 THEN 	'jav'
+        WHEN numval =	215	 THEN 	'jbo'
+        WHEN numval =	216	 THEN 	'jpn'
+        WHEN numval =	217	 THEN 	'jpr'
+        WHEN numval =	218	 THEN 	'jrb'
+        WHEN numval =	219	 THEN 	'kaa'
+        WHEN numval =	220	 THEN 	'kab'
+        WHEN numval =	221	 THEN 	'kac'
+        WHEN numval =	222	 THEN 	'kal'
+        WHEN numval =	223	 THEN 	'kam'
+        WHEN numval =	224	 THEN 	'kan'
+        WHEN numval =	225	 THEN 	'kar'
+        WHEN numval =	226	 THEN 	'kas'
+        WHEN numval =	227	 THEN 	'kat'
+        WHEN numval =	228	 THEN 	'kau'
+        WHEN numval =	229	 THEN 	'kaw'
+        WHEN numval =	230	 THEN 	'kaz'
+        WHEN numval =	231	 THEN 	'kbd'
+        WHEN numval =	232	 THEN 	'kha'
+        WHEN numval =	233	 THEN 	'khi'
+        WHEN numval =	234	 THEN 	'khm'
+        WHEN numval =	235	 THEN 	'kho'
+        WHEN numval =	236	 THEN 	'kik'
+        WHEN numval =	237	 THEN 	'kin'
+        WHEN numval =	238	 THEN 	'kir'
+        WHEN numval =	239	 THEN 	'kmb'
+        WHEN numval =	240	 THEN 	'kok'
+        WHEN numval =	241	 THEN 	'kom'
+        WHEN numval =	242	 THEN 	'kon'
+        WHEN numval =	243	 THEN 	'kor'
+        WHEN numval =	244	 THEN 	'kos'
+        WHEN numval =	245	 THEN 	'kpe'
+        WHEN numval =	246	 THEN 	'krc'
+        WHEN numval =	247	 THEN 	'krl'
+        WHEN numval =	248	 THEN 	'kro'
+        WHEN numval =	249	 THEN 	'kru'
+        WHEN numval =	250	 THEN 	'kua'
+        WHEN numval =	251	 THEN 	'kum'
+        WHEN numval =	252	 THEN 	'kur'
+        WHEN numval =	253	 THEN 	'kut'
+        WHEN numval =	254	 THEN 	'lad'
+        WHEN numval =	255	 THEN 	'lah'
+        WHEN numval =	256	 THEN 	'lam'
+        WHEN numval =	257	 THEN 	'lao'
+        WHEN numval =	258	 THEN 	'lat'
+        WHEN numval =	259	 THEN 	'lav'
+        WHEN numval =	260	 THEN 	'lez'
+        WHEN numval =	261	 THEN 	'lim'
+        WHEN numval =	262	 THEN 	'lin'
+        WHEN numval =	263	 THEN 	'lit'
+        WHEN numval =	264	 THEN 	'lol'
+        WHEN numval =	265	 THEN 	'loz'
+        WHEN numval =	266	 THEN 	'ltz'
+        WHEN numval =	267	 THEN 	'lua'
+        WHEN numval =	268	 THEN 	'lub'
+        WHEN numval =	269	 THEN 	'lug'
+        WHEN numval =	270	 THEN 	'lui'
+        WHEN numval =	271	 THEN 	'lun'
+        WHEN numval =	272	 THEN 	'luo'
+        WHEN numval =	273	 THEN 	'lus'
+        WHEN numval =	274	 THEN 	'mac'
+        WHEN numval =	275	 THEN 	'mad'
+        WHEN numval =	276	 THEN 	'mag'
+        WHEN numval =	277	 THEN 	'mah'
+        WHEN numval =	278	 THEN 	'mai'
+        WHEN numval =	279	 THEN 	'mak'
+        WHEN numval =	280	 THEN 	'mal'
+        WHEN numval =	281	 THEN 	'man'
+        WHEN numval =	282	 THEN 	'mao'
+        WHEN numval =	283	 THEN 	'map'
+        WHEN numval =	284	 THEN 	'mar'
+        WHEN numval =	285	 THEN 	'mas'
+        WHEN numval =	286	 THEN 	'may'
+        WHEN numval =	287	 THEN 	'mdf'
+        WHEN numval =	288	 THEN 	'mdr'
+        WHEN numval =	289	 THEN 	'men'
+        WHEN numval =	290	 THEN 	'mga'
+        WHEN numval =	291	 THEN 	'mic'
+        WHEN numval =	292	 THEN 	'min'
+        WHEN numval =	293	 THEN 	'mis'
+        WHEN numval =	294	 THEN 	'mkd'
+        WHEN numval =	295	 THEN 	'mkh'
+        WHEN numval =	296	 THEN 	'mlg'
+        WHEN numval =	297	 THEN 	'mlt'
+        WHEN numval =	298	 THEN 	'mnc'
+        WHEN numval =	299	 THEN 	'mni'
+        WHEN numval =	300	 THEN 	'mno'
+        WHEN numval =	301	 THEN 	'moh'
+        WHEN numval =	302	 THEN 	'mon'
+        WHEN numval =	303	 THEN 	'mos'
+        WHEN numval =	304	 THEN 	'mri'
+        WHEN numval =	305	 THEN 	'msa'
+        WHEN numval =	306	 THEN 	'mul'
+        WHEN numval =	307	 THEN 	'mun'
+        WHEN numval =	308	 THEN 	'mus'
+        WHEN numval =	309	 THEN 	'mwl'
+        WHEN numval =	310	 THEN 	'mwr'
+        WHEN numval =	311	 THEN 	'mya'
+        WHEN numval =	312	 THEN 	'myn'
+        WHEN numval =	313	 THEN 	'myv'
+        WHEN numval =	314	 THEN 	'nah'
+        WHEN numval =	315	 THEN 	'nai'
+        WHEN numval =	316	 THEN 	'nap'
+        WHEN numval =	317	 THEN 	'nau'
+        WHEN numval =	318	 THEN 	'nav'
+        WHEN numval =	319	 THEN 	'nbl'
+        WHEN numval =	320	 THEN 	'nde'
+        WHEN numval =	321	 THEN 	'ndo'
+        WHEN numval =	322	 THEN 	'nds'
+        WHEN numval =	323	 THEN 	'nep'
+        WHEN numval =	324	 THEN 	'new'
+        WHEN numval =	325	 THEN 	'nia'
+        WHEN numval =	326	 THEN 	'nic'
+        WHEN numval =	327	 THEN 	'nid'
+        WHEN numval =	328	 THEN 	'niu'
+        WHEN numval =	329	 THEN 	'nld'
+        WHEN numval =	330	 THEN 	'nno'
+        WHEN numval =	331	 THEN 	'nob'
+        WHEN numval =	332	 THEN 	'nog'
+        WHEN numval =	333	 THEN 	'non'
+        WHEN numval =	334	 THEN 	'nor'
+        WHEN numval =	335	 THEN 	'nqo'
+        WHEN numval =	336	 THEN 	'nso'
+        WHEN numval =	337	 THEN 	'nub'
+        WHEN numval =	338	 THEN 	'nwc'
+        WHEN numval =	339	 THEN 	'nya'
+        WHEN numval =	340	 THEN 	'nym'
+        WHEN numval =	341	 THEN 	'nyn'
+        WHEN numval =	342	 THEN 	'nyo'
+        WHEN numval =	343	 THEN 	'nzi'
+        WHEN numval =	344	 THEN 	'oci'
+        WHEN numval =	345	 THEN 	'oji'
+        WHEN numval =	346	 THEN 	'ori'
+        WHEN numval =	347	 THEN 	'orm'
+        WHEN numval =	348	 THEN 	'osa'
+        WHEN numval =	349	 THEN 	'oss'
+        WHEN numval =	350	 THEN 	'ota'
+        WHEN numval =	351	 THEN 	'oto'
+        WHEN numval =	352	 THEN 	'paa'
+        WHEN numval =	353	 THEN 	'pag'
+        WHEN numval =	354	 THEN 	'pal'
+        WHEN numval =	355	 THEN 	'pam'
+        WHEN numval =	356	 THEN 	'pan'
+        WHEN numval =	357	 THEN 	'pap'
+        WHEN numval =	358	 THEN 	'pau'
+        WHEN numval =	359	 THEN 	'peo'
+        WHEN numval =	360	 THEN 	'per'
+        WHEN numval =	361	 THEN 	'phi'
+        WHEN numval =	362	 THEN 	'phn'
+        WHEN numval =	363	 THEN 	'pli'
+        WHEN numval =	364	 THEN 	'pol'
+        WHEN numval =	365	 THEN 	'pon'
+        WHEN numval =	366	 THEN 	'por'
+        WHEN numval =	367	 THEN 	'pra'
+        WHEN numval =	368	 THEN 	'pro'
+        WHEN numval =	369	 THEN 	'pus'
+        WHEN numval =	370	 THEN 	'qaa'
+        WHEN numval =	371	 THEN 	'qtz'
+        WHEN numval =	372	 THEN 	'que'
+        WHEN numval =	373	 THEN 	'raj'
+        WHEN numval =	374	 THEN 	'rap'
+        WHEN numval =	375	 THEN 	'rar'
+        WHEN numval =	376	 THEN 	'roa'
+        WHEN numval =	377	 THEN 	'roh'
+        WHEN numval =	378	 THEN 	'rom'
+        WHEN numval =	379	 THEN 	'ron'
+        WHEN numval =	380	 THEN 	'rum'
+        WHEN numval =	381	 THEN 	'run'
+        WHEN numval =	382	 THEN 	'rup'
+        WHEN numval =	383	 THEN 	'rus'
+        WHEN numval =	384	 THEN 	'sad'
+        WHEN numval =	385	 THEN 	'sag'
+        WHEN numval =	386	 THEN 	'sah'
+        WHEN numval =	387	 THEN 	'sai'
+        WHEN numval =	388	 THEN 	'sal'
+        WHEN numval =	389	 THEN 	'sam'
+        WHEN numval =	390	 THEN 	'san'
+        WHEN numval =	391	 THEN 	'sas'
+        WHEN numval =	392	 THEN 	'sat'
+        WHEN numval =	393	 THEN 	'scn'
+        WHEN numval =	394	 THEN 	'sco'
+        WHEN numval =	395	 THEN 	'sel'
+        WHEN numval =	396	 THEN 	'sem'
+        WHEN numval =	397	 THEN 	'sga'
+        WHEN numval =	398	 THEN 	'sgn'
+        WHEN numval =	399	 THEN 	'shn'
+        WHEN numval =	400	 THEN 	'sid'
+        WHEN numval =	401	 THEN 	'sin'
+        WHEN numval =	402	 THEN 	'sio'
+        WHEN numval =	403	 THEN 	'sit'
+        WHEN numval =	404	 THEN 	'sla'
+        WHEN numval =	405	 THEN 	'slk'
+        WHEN numval =	406	 THEN 	'slo'
+        WHEN numval =	407	 THEN 	'slv'
+        WHEN numval =	408	 THEN 	'sma'
+        WHEN numval =	409	 THEN 	'sme'
+        WHEN numval =	410	 THEN 	'smi'
+        WHEN numval =	411	 THEN 	'smj'
+        WHEN numval =	412	 THEN 	'smn'
+        WHEN numval =	413	 THEN 	'smo'
+        WHEN numval =	414	 THEN 	'sms'
+        WHEN numval =	415	 THEN 	'sna'
+        WHEN numval =	416	 THEN 	'snd'
+        WHEN numval =	417	 THEN 	'snk'
+        WHEN numval =	418	 THEN 	'sog'
+        WHEN numval =	419	 THEN 	'som'
+        WHEN numval =	420	 THEN 	'son'
+        WHEN numval =	421	 THEN 	'sot'
+        WHEN numval =	422	 THEN 	'spa'
+        WHEN numval =	423	 THEN 	'sqi'
+        WHEN numval =	424	 THEN 	'srd'
+        WHEN numval =	425	 THEN 	'srn'
+        WHEN numval =	426	 THEN 	'srp'
+        WHEN numval =	427	 THEN 	'srr'
+        WHEN numval =	428	 THEN 	'ssa'
+        WHEN numval =	429	 THEN 	'ssw'
+        WHEN numval =	430	 THEN 	'suk'
+        WHEN numval =	431	 THEN 	'sun'
+        WHEN numval =	432	 THEN 	'sus'
+        WHEN numval =	433	 THEN 	'sux'
+        WHEN numval =	434	 THEN 	'swa'
+        WHEN numval =	435	 THEN 	'swe'
+        WHEN numval =	436	 THEN 	'syc'
+        WHEN numval =	437	 THEN 	'syr'
+        WHEN numval =	438	 THEN 	'tah'
+        WHEN numval =	439	 THEN 	'tai'
+        WHEN numval =	440	 THEN 	'tam'
+        WHEN numval =	441	 THEN 	'tat'
+        WHEN numval =	442	 THEN 	'tel'
+        WHEN numval =	443	 THEN 	'tem'
+        WHEN numval =	444	 THEN 	'ter'
+        WHEN numval =	445	 THEN 	'tet'
+        WHEN numval =	446	 THEN 	'tgk'
+        WHEN numval =	447	 THEN 	'tgl'
+        WHEN numval =	448	 THEN 	'tha'
+        WHEN numval =	449	 THEN 	'tib'
+        WHEN numval =	450	 THEN 	'tig'
+        WHEN numval =	451	 THEN 	'tir'
+        WHEN numval =	452	 THEN 	'tiv'
+        WHEN numval =	453	 THEN 	'tkl'
+        WHEN numval =	454	 THEN 	'tlh'
+        WHEN numval =	455	 THEN 	'tli'
+        WHEN numval =	456	 THEN 	'tmh'
+        WHEN numval =	457	 THEN 	'tog'
+        WHEN numval =	458	 THEN 	'ton'
+        WHEN numval =	459	 THEN 	'tpi'
+        WHEN numval =	460	 THEN 	'tsi'
+        WHEN numval =	461	 THEN 	'tsn'
+        WHEN numval =	462	 THEN 	'tso'
+        WHEN numval =	463	 THEN 	'tuk'
+        WHEN numval =	464	 THEN 	'tum'
+        WHEN numval =	465	 THEN 	'tup'
+        WHEN numval =	466	 THEN 	'tur'
+        WHEN numval =	467	 THEN 	'tut'
+        WHEN numval =	468	 THEN 	'tvl'
+        WHEN numval =	469	 THEN 	'twi'
+        WHEN numval =	470	 THEN 	'tyv'
+        WHEN numval =	471	 THEN 	'udm'
+        WHEN numval =	472	 THEN 	'uga'
+        WHEN numval =	473	 THEN 	'uig'
+        WHEN numval =	474	 THEN 	'ukr'
+        WHEN numval =	475	 THEN 	'umb'
+        WHEN numval =	476	 THEN 	'und'
+        WHEN numval =	477	 THEN 	'urd'
+        WHEN numval =	478	 THEN 	'uzb'
+        WHEN numval =	479	 THEN 	'vai'
+        WHEN numval =	480	 THEN 	'ven'
+        WHEN numval =	481	 THEN 	'vie'
+        WHEN numval =	482	 THEN 	'vol'
+        WHEN numval =	483	 THEN 	'vot'
+        WHEN numval =	484	 THEN 	'wak'
+        WHEN numval =	485	 THEN 	'wal'
+        WHEN numval =	486	 THEN 	'war'
+        WHEN numval =	487	 THEN 	'was'
+        WHEN numval =	488	 THEN 	'wel'
+        WHEN numval =	489	 THEN 	'wen'
+        WHEN numval =	490	 THEN 	'wln'
+        WHEN numval =	491	 THEN 	'wol'
+        WHEN numval =	492	 THEN 	'xal'
+        WHEN numval =	493	 THEN 	'xho'
+        WHEN numval =	494	 THEN 	'yao'
+        WHEN numval =	495	 THEN 	'yap'
+        WHEN numval =	496	 THEN 	'yid'
+        WHEN numval =	497	 THEN 	'yor'
+        WHEN numval =	498	 THEN 	'ypk'
+        WHEN numval =	499	 THEN 	'zap'
+        WHEN numval =	500	 THEN 	'zbl'
+        WHEN numval =	501	 THEN 	'zen'
+        WHEN numval =	502	 THEN 	'zgh'
+        WHEN numval =	503	 THEN 	'zha'
+        WHEN numval =	504	 THEN 	'zho'
+        WHEN numval =	505	 THEN 	'znd'
+        WHEN numval =	506	 THEN 	'zul'
+        WHEN numval =	507	 THEN 	'zun'
+        WHEN numval =	508	 THEN 	'zxx'
+        WHEN numval =	509	 THEN 	'zza'
+        END
+FROM 
             (
-                    SELECT 'aar' AS language_code UNION ALL
-                    SELECT 'abk' UNION ALL
-                    SELECT 'ace' UNION ALL
-                    SELECT 'ach' UNION ALL
-                    SELECT 'ada' UNION ALL
-                    SELECT 'ady' UNION ALL
-                    SELECT 'afa' UNION ALL
-                    SELECT 'afh' UNION ALL
-                    SELECT 'afr' UNION ALL
-                    SELECT 'ain' UNION ALL
-                    SELECT 'aka' UNION ALL
-                    SELECT 'akk' UNION ALL
-                    SELECT 'alb' UNION ALL
-                    SELECT 'ale' UNION ALL
-                    SELECT 'alg' UNION ALL
-                    SELECT 'alt' UNION ALL
-                    SELECT 'amh' UNION ALL
-                    SELECT 'ang' UNION ALL
-                    SELECT 'anp' UNION ALL
-                    SELECT 'apa' UNION ALL
-                    SELECT 'ara' UNION ALL
-                    SELECT 'arc' UNION ALL
-                    SELECT 'arg' UNION ALL
-                    SELECT 'arm' UNION ALL
-                    SELECT 'arn' UNION ALL
-                    SELECT 'arp' UNION ALL
-                    SELECT 'art' UNION ALL
-                    SELECT 'arw' UNION ALL
-                    SELECT 'asm' UNION ALL
-                    SELECT 'ast' UNION ALL
-                    SELECT 'ath' UNION ALL
-                    SELECT 'aus' UNION ALL
-                    SELECT 'ava' UNION ALL
-                    SELECT 'ave' UNION ALL
-                    SELECT 'awa' UNION ALL
-                    SELECT 'aym' UNION ALL
-                    SELECT 'aze' UNION ALL
-                    SELECT 'bad' UNION ALL
-                    SELECT 'bai' UNION ALL
-                    SELECT 'bak' UNION ALL
-                    SELECT 'bal' UNION ALL
-                    SELECT 'bam' UNION ALL
-                    SELECT 'ban' UNION ALL
-                    SELECT 'baq' UNION ALL
-                    SELECT 'bas' UNION ALL
-                    SELECT 'bat' UNION ALL
-                    SELECT 'bej' UNION ALL
-                    SELECT 'bel' UNION ALL
-                    SELECT 'bem' UNION ALL
-                    SELECT 'ben' UNION ALL
-                    SELECT 'ber' UNION ALL
-                    SELECT 'bho' UNION ALL
-                    SELECT 'bih' UNION ALL
-                    SELECT 'bik' UNION ALL
-                    SELECT 'bin' UNION ALL
-                    SELECT 'bis' UNION ALL
-                    SELECT 'bla' UNION ALL
-                    SELECT 'bnt' UNION ALL
-                    SELECT 'bod' UNION ALL
-                    SELECT 'bos' UNION ALL
-                    SELECT 'bra' UNION ALL
-                    SELECT 'bre' UNION ALL
-                    SELECT 'btk' UNION ALL
-                    SELECT 'bua' UNION ALL
-                    SELECT 'bug' UNION ALL
-                    SELECT 'bul' UNION ALL
-                    SELECT 'bur' UNION ALL
-                    SELECT 'byn' UNION ALL
-                    SELECT 'cad' UNION ALL
-                    SELECT 'cai' UNION ALL
-                    SELECT 'car' UNION ALL
-                    SELECT 'cat' UNION ALL
-                    SELECT 'cau' UNION ALL
-                    SELECT 'ceb' UNION ALL
-                    SELECT 'cel' UNION ALL
-                    SELECT 'ces' UNION ALL
-                    SELECT 'cha' UNION ALL
-                    SELECT 'chb' UNION ALL
-                    SELECT 'che' UNION ALL
-                    SELECT 'chg' UNION ALL
-                    SELECT 'chi' UNION ALL
-                    SELECT 'chk' UNION ALL
-                    SELECT 'chm' UNION ALL
-                    SELECT 'chn' UNION ALL
-                    SELECT 'cho' UNION ALL
-                    SELECT 'chp' UNION ALL
-                    SELECT 'chr' UNION ALL
-                    SELECT 'chu' UNION ALL
-                    SELECT 'chv' UNION ALL
-                    SELECT 'chy' UNION ALL
-                    SELECT 'cmc' UNION ALL
-                    SELECT 'cnr' UNION ALL
-                    SELECT 'cop' UNION ALL
-                    SELECT 'cor' UNION ALL
-                    SELECT 'cos' UNION ALL
-                    SELECT 'cpe' UNION ALL
-                    SELECT 'cpf' UNION ALL
-                    SELECT 'cpp' UNION ALL
-                    SELECT 'cre' UNION ALL
-                    SELECT 'crh' UNION ALL
-                    SELECT 'crp' UNION ALL
-                    SELECT 'csb' UNION ALL
-                    SELECT 'cus' UNION ALL
-                    SELECT 'cym' UNION ALL
-                    SELECT 'cze' UNION ALL
-                    SELECT 'dak' UNION ALL
-                    SELECT 'dan' UNION ALL
-                    SELECT 'dar' UNION ALL
-                    SELECT 'day' UNION ALL
-                    SELECT 'del' UNION ALL
-                    SELECT 'den' UNION ALL
-                    SELECT 'deu' UNION ALL
-                    SELECT 'dgr' UNION ALL
-                    SELECT 'din' UNION ALL
-                    SELECT 'div' UNION ALL
-                    SELECT 'doi' UNION ALL
-                    SELECT 'dra' UNION ALL
-                    SELECT 'dsb' UNION ALL
-                    SELECT 'dua' UNION ALL
-                    SELECT 'dum' UNION ALL
-                    SELECT 'dut' UNION ALL
-                    SELECT 'dyu' UNION ALL
-                    SELECT 'dzo' UNION ALL
-                    SELECT 'efi' UNION ALL
-                    SELECT 'egy' UNION ALL
-                    SELECT 'eka' UNION ALL
-                    SELECT 'ell' UNION ALL
-                    SELECT 'elx' UNION ALL
-                    SELECT 'eng' UNION ALL
-                    SELECT 'enm' UNION ALL
-                    SELECT 'epo' UNION ALL
-                    SELECT 'est' UNION ALL
-                    SELECT 'eus' UNION ALL
-                    SELECT 'ewe' UNION ALL
-                    SELECT 'ewo' UNION ALL
-                    SELECT 'fan' UNION ALL
-                    SELECT 'fao' UNION ALL
-                    SELECT 'fas' UNION ALL
-                    SELECT 'fat' UNION ALL
-                    SELECT 'fij' UNION ALL
-                    SELECT 'fil' UNION ALL
-                    SELECT 'fin' UNION ALL
-                    SELECT 'fiu' UNION ALL
-                    SELECT 'fon' UNION ALL
-                    SELECT 'fra' UNION ALL
-                    SELECT 'fre' UNION ALL
-                    SELECT 'frm' UNION ALL
-                    SELECT 'fro' UNION ALL
-                    SELECT 'frr' UNION ALL
-                    SELECT 'frs' UNION ALL
-                    SELECT 'fry' UNION ALL
-                    SELECT 'ful' UNION ALL
-                    SELECT 'fur' UNION ALL
-                    SELECT 'gaa' UNION ALL
-                    SELECT 'gay' UNION ALL
-                    SELECT 'gba' UNION ALL
-                    SELECT 'gem' UNION ALL
-                    SELECT 'geo' UNION ALL
-                    SELECT 'ger' UNION ALL
-                    SELECT 'gez' UNION ALL
-                    SELECT 'gil' UNION ALL
-                    SELECT 'gla' UNION ALL
-                    SELECT 'gle' UNION ALL
-                    SELECT 'glg' UNION ALL
-                    SELECT 'glv' UNION ALL
-                    SELECT 'gmh' UNION ALL
-                    SELECT 'goh' UNION ALL
-                    SELECT 'gon' UNION ALL
-                    SELECT 'gor' UNION ALL
-                    SELECT 'got' UNION ALL
-                    SELECT 'grb' UNION ALL
-                    SELECT 'grc' UNION ALL
-                    SELECT 'gre' UNION ALL
-                    SELECT 'grn' UNION ALL
-                    SELECT 'gsw' UNION ALL
-                    SELECT 'guj' UNION ALL
-                    SELECT 'gwi' UNION ALL
-                    SELECT 'hai' UNION ALL
-                    SELECT 'hat' UNION ALL
-                    SELECT 'hau' UNION ALL
-                    SELECT 'haw' UNION ALL
-                    SELECT 'heb' UNION ALL
-                    SELECT 'her' UNION ALL
-                    SELECT 'hil' UNION ALL
-                    SELECT 'him' UNION ALL
-                    SELECT 'hin' UNION ALL
-                    SELECT 'hit' UNION ALL
-                    SELECT 'hmn' UNION ALL
-                    SELECT 'hmo' UNION ALL
-                    SELECT 'hrv' UNION ALL
-                    SELECT 'hsb' UNION ALL
-                    SELECT 'hun' UNION ALL
-                    SELECT 'hup' UNION ALL
-                    SELECT 'hye' UNION ALL
-                    SELECT 'iba' UNION ALL
-                    SELECT 'ibo' UNION ALL
-                    SELECT 'ice' UNION ALL
-                    SELECT 'ido' UNION ALL
-                    SELECT 'iii' UNION ALL
-                    SELECT 'ijo' UNION ALL
-                    SELECT 'iku' UNION ALL
-                    SELECT 'ile' UNION ALL
-                    SELECT 'ilo' UNION ALL
-                    SELECT 'ina' UNION ALL
-                    SELECT 'inc' UNION ALL
-                    SELECT 'ind' UNION ALL
-                    SELECT 'ine' UNION ALL
-                    SELECT 'inh' UNION ALL
-                    SELECT 'ipk' UNION ALL
-                    SELECT 'ira' UNION ALL
-                    SELECT 'iro' UNION ALL
-                    SELECT 'isl' UNION ALL
-                    SELECT 'ita' UNION ALL
-                    SELECT 'jav' UNION ALL
-                    SELECT 'jbo' UNION ALL
-                    SELECT 'jpn' UNION ALL
-                    SELECT 'jpr' UNION ALL
-                    SELECT 'jrb' UNION ALL
-                    SELECT 'kaa' UNION ALL
-                    SELECT 'kab' UNION ALL
-                    SELECT 'kac' UNION ALL
-                    SELECT 'kal' UNION ALL
-                    SELECT 'kam' UNION ALL
-                    SELECT 'kan' UNION ALL
-                    SELECT 'kar' UNION ALL
-                    SELECT 'kas' UNION ALL
-                    SELECT 'kat' UNION ALL
-                    SELECT 'kau' UNION ALL
-                    SELECT 'kaw' UNION ALL
-                    SELECT 'kaz' UNION ALL
-                    SELECT 'kbd' UNION ALL
-                    SELECT 'kha' UNION ALL
-                    SELECT 'khi' UNION ALL
-                    SELECT 'khm' UNION ALL
-                    SELECT 'kho' UNION ALL
-                    SELECT 'kik' UNION ALL
-                    SELECT 'kin' UNION ALL
-                    SELECT 'kir' UNION ALL
-                    SELECT 'kmb' UNION ALL
-                    SELECT 'kok' UNION ALL
-                    SELECT 'kom' UNION ALL
-                    SELECT 'kon' UNION ALL
-                    SELECT 'kor' UNION ALL
-                    SELECT 'kos' UNION ALL
-                    SELECT 'kpe' UNION ALL
-                    SELECT 'krc' UNION ALL
-                    SELECT 'krl' UNION ALL
-                    SELECT 'kro' UNION ALL
-                    SELECT 'kru' UNION ALL
-                    SELECT 'kua' UNION ALL
-                    SELECT 'kum' UNION ALL
-                    SELECT 'kur' UNION ALL
-                    SELECT 'kut' UNION ALL
-                    SELECT 'lad' UNION ALL
-                    SELECT 'lah' UNION ALL
-                    SELECT 'lam' UNION ALL
-                    SELECT 'lao' UNION ALL
-                    SELECT 'lat' UNION ALL
-                    SELECT 'lav' UNION ALL
-                    SELECT 'lez' UNION ALL
-                    SELECT 'lim' UNION ALL
-                    SELECT 'lin' UNION ALL
-                    SELECT 'lit' UNION ALL
-                    SELECT 'lol' UNION ALL
-                    SELECT 'loz' UNION ALL
-                    SELECT 'ltz' UNION ALL
-                    SELECT 'lua' UNION ALL
-                    SELECT 'lub' UNION ALL
-                    SELECT 'lug' UNION ALL
-                    SELECT 'lui' UNION ALL
-                    SELECT 'lun' UNION ALL
-                    SELECT 'luo' UNION ALL
-                    SELECT 'lus' UNION ALL
-                    SELECT 'mac' UNION ALL
-                    SELECT 'mad' UNION ALL
-                    SELECT 'mag' UNION ALL
-                    SELECT 'mah' UNION ALL
-                    SELECT 'mai' UNION ALL
-                    SELECT 'mak' UNION ALL
-                    SELECT 'mal' UNION ALL
-                    SELECT 'man' UNION ALL
-                    SELECT 'mao' UNION ALL
-                    SELECT 'map' UNION ALL
-                    SELECT 'mar' UNION ALL
-                    SELECT 'mas' UNION ALL
-                    SELECT 'may' UNION ALL
-                    SELECT 'mdf' UNION ALL
-                    SELECT 'mdr' UNION ALL
-                    SELECT 'men' UNION ALL
-                    SELECT 'mga' UNION ALL
-                    SELECT 'mic' UNION ALL
-                    SELECT 'min' UNION ALL
-                    SELECT 'mis' UNION ALL
-                    SELECT 'mkd' UNION ALL
-                    SELECT 'mkh' UNION ALL
-                    SELECT 'mlg' UNION ALL
-                    SELECT 'mlt' UNION ALL
-                    SELECT 'mnc' UNION ALL
-                    SELECT 'mni' UNION ALL
-                    SELECT 'mno' UNION ALL
-                    SELECT 'moh' UNION ALL
-                    SELECT 'mon' UNION ALL
-                    SELECT 'mos' UNION ALL
-                    SELECT 'mri' UNION ALL
-                    SELECT 'msa' UNION ALL
-                    SELECT 'mul' UNION ALL
-                    SELECT 'mun' UNION ALL
-                    SELECT 'mus' UNION ALL
-                    SELECT 'mwl' UNION ALL
-                    SELECT 'mwr' UNION ALL
-                    SELECT 'mya' UNION ALL
-                    SELECT 'myn' UNION ALL
-                    SELECT 'myv' UNION ALL
-                    SELECT 'nah' UNION ALL
-                    SELECT 'nai' UNION ALL
-                    SELECT 'nap' UNION ALL
-                    SELECT 'nau' UNION ALL
-                    SELECT 'nav' UNION ALL
-                    SELECT 'nbl' UNION ALL
-                    SELECT 'nde' UNION ALL
-                    SELECT 'ndo' UNION ALL
-                    SELECT 'nds' UNION ALL
-                    SELECT 'nep' UNION ALL
-                    SELECT 'new' UNION ALL
-                    SELECT 'nia' UNION ALL
-                    SELECT 'nic' UNION ALL
-                    SELECT 'nid' UNION ALL
-                    SELECT 'niu' UNION ALL
-                    SELECT 'nld' UNION ALL
-                    SELECT 'nno' UNION ALL
-                    SELECT 'nob' UNION ALL
-                    SELECT 'nog' UNION ALL
-                    SELECT 'non' UNION ALL
-                    SELECT 'nor' UNION ALL
-                    SELECT 'nqo' UNION ALL
-                    SELECT 'nso' UNION ALL
-                    SELECT 'nub' UNION ALL
-                    SELECT 'nwc' UNION ALL
-                    SELECT 'nya' UNION ALL
-                    SELECT 'nym' UNION ALL
-                    SELECT 'nyn' UNION ALL
-                    SELECT 'nyo' UNION ALL
-                    SELECT 'nzi' UNION ALL
-                    SELECT 'oci' UNION ALL
-                    SELECT 'oji' UNION ALL
-                    SELECT 'ori' UNION ALL
-                    SELECT 'orm' UNION ALL
-                    SELECT 'osa' UNION ALL
-                    SELECT 'oss' UNION ALL
-                    SELECT 'ota' UNION ALL
-                    SELECT 'oto' UNION ALL
-                    SELECT 'paa' UNION ALL
-                    SELECT 'pag' UNION ALL
-                    SELECT 'pal' UNION ALL
-                    SELECT 'pam' UNION ALL
-                    SELECT 'pan' UNION ALL
-                    SELECT 'pap' UNION ALL
-                    SELECT 'pau' UNION ALL
-                    SELECT 'peo' UNION ALL
-                    SELECT 'per' UNION ALL
-                    SELECT 'phi' UNION ALL
-                    SELECT 'phn' UNION ALL
-                    SELECT 'pli' UNION ALL
-                    SELECT 'pol' UNION ALL
-                    SELECT 'pon' UNION ALL
-                    SELECT 'por' UNION ALL
-                    SELECT 'pra' UNION ALL
-                    SELECT 'pro' UNION ALL
-                    SELECT 'pus' UNION ALL
-                    SELECT 'qaa' UNION ALL
-                    SELECT 'qtz' UNION ALL
-                    SELECT 'que' UNION ALL
-                    SELECT 'raj' UNION ALL
-                    SELECT 'rap' UNION ALL
-                    SELECT 'rar' UNION ALL
-                    SELECT 'roa' UNION ALL
-                    SELECT 'roh' UNION ALL
-                    SELECT 'rom' UNION ALL
-                    SELECT 'ron' UNION ALL
-                    SELECT 'rum' UNION ALL
-                    SELECT 'run' UNION ALL
-                    SELECT 'rup' UNION ALL
-                    SELECT 'rus' UNION ALL
-                    SELECT 'sad' UNION ALL
-                    SELECT 'sag' UNION ALL
-                    SELECT 'sah' UNION ALL
-                    SELECT 'sai' UNION ALL
-                    SELECT 'sal' UNION ALL
-                    SELECT 'sam' UNION ALL
-                    SELECT 'san' UNION ALL
-                    SELECT 'sas' UNION ALL
-                    SELECT 'sat' UNION ALL
-                    SELECT 'scn' UNION ALL
-                    SELECT 'sco' UNION ALL
-                    SELECT 'sel' UNION ALL
-                    SELECT 'sem' UNION ALL
-                    SELECT 'sga' UNION ALL
-                    SELECT 'sgn' UNION ALL
-                    SELECT 'shn' UNION ALL
-                    SELECT 'sid' UNION ALL
-                    SELECT 'sin' UNION ALL
-                    SELECT 'sio' UNION ALL
-                    SELECT 'sit' UNION ALL
-                    SELECT 'sla' UNION ALL
-                    SELECT 'slk' UNION ALL
-                    SELECT 'slo' UNION ALL
-                    SELECT 'slv' UNION ALL
-                    SELECT 'sma' UNION ALL
-                    SELECT 'sme' UNION ALL
-                    SELECT 'smi' UNION ALL
-                    SELECT 'smj' UNION ALL
-                    SELECT 'smn' UNION ALL
-                    SELECT 'smo' UNION ALL
-                    SELECT 'sms' UNION ALL
-                    SELECT 'sna' UNION ALL
-                    SELECT 'snd' UNION ALL
-                    SELECT 'snk' UNION ALL
-                    SELECT 'sog' UNION ALL
-                    SELECT 'som' UNION ALL
-                    SELECT 'son' UNION ALL
-                    SELECT 'sot' UNION ALL
-                    SELECT 'spa' UNION ALL
-                    SELECT 'sqi' UNION ALL
-                    SELECT 'srd' UNION ALL
-                    SELECT 'srn' UNION ALL
-                    SELECT 'srp' UNION ALL
-                    SELECT 'srr' UNION ALL
-                    SELECT 'ssa' UNION ALL
-                    SELECT 'ssw' UNION ALL
-                    SELECT 'suk' UNION ALL
-                    SELECT 'sun' UNION ALL
-                    SELECT 'sus' UNION ALL
-                    SELECT 'sux' UNION ALL
-                    SELECT 'swa' UNION ALL
-                    SELECT 'swe' UNION ALL
-                    SELECT 'syc' UNION ALL
-                    SELECT 'syr' UNION ALL
-                    SELECT 'tah' UNION ALL
-                    SELECT 'tai' UNION ALL
-                    SELECT 'tam' UNION ALL
-                    SELECT 'tat' UNION ALL
-                    SELECT 'tel' UNION ALL
-                    SELECT 'tem' UNION ALL
-                    SELECT 'ter' UNION ALL
-                    SELECT 'tet' UNION ALL
-                    SELECT 'tgk' UNION ALL
-                    SELECT 'tgl' UNION ALL
-                    SELECT 'tha' UNION ALL
-                    SELECT 'tib' UNION ALL
-                    SELECT 'tig' UNION ALL
-                    SELECT 'tir' UNION ALL
-                    SELECT 'tiv' UNION ALL
-                    SELECT 'tkl' UNION ALL
-                    SELECT 'tlh' UNION ALL
-                    SELECT 'tli' UNION ALL
-                    SELECT 'tmh' UNION ALL
-                    SELECT 'tog' UNION ALL
-                    SELECT 'ton' UNION ALL
-                    SELECT 'tpi' UNION ALL
-                    SELECT 'tsi' UNION ALL
-                    SELECT 'tsn' UNION ALL
-                    SELECT 'tso' UNION ALL
-                    SELECT 'tuk' UNION ALL
-                    SELECT 'tum' UNION ALL
-                    SELECT 'tup' UNION ALL
-                    SELECT 'tur' UNION ALL
-                    SELECT 'tut' UNION ALL
-                    SELECT 'tvl' UNION ALL
-                    SELECT 'twi' UNION ALL
-                    SELECT 'tyv' UNION ALL
-                    SELECT 'udm' UNION ALL
-                    SELECT 'uga' UNION ALL
-                    SELECT 'uig' UNION ALL
-                    SELECT 'ukr' UNION ALL
-                    SELECT 'umb' UNION ALL
-                    SELECT 'und' UNION ALL
-                    SELECT 'urd' UNION ALL
-                    SELECT 'uzb' UNION ALL
-                    SELECT 'vai' UNION ALL
-                    SELECT 'ven' UNION ALL
-                    SELECT 'vie' UNION ALL
-                    SELECT 'vol' UNION ALL
-                    SELECT 'vot' UNION ALL
-                    SELECT 'wak' UNION ALL
-                    SELECT 'wal' UNION ALL
-                    SELECT 'war' UNION ALL
-                    SELECT 'was' UNION ALL
-                    SELECT 'wel' UNION ALL
-                    SELECT 'wen' UNION ALL
-                    SELECT 'wln' UNION ALL
-                    SELECT 'wol' UNION ALL
-                    SELECT 'xal' UNION ALL
-                    SELECT 'xho' UNION ALL
-                    SELECT 'yao' UNION ALL
-                    SELECT 'yap' UNION ALL
-                    SELECT 'yid' UNION ALL
-                    SELECT 'yor' UNION ALL
-                    SELECT 'ypk' UNION ALL
-                    SELECT 'zap' UNION ALL
-                    SELECT 'zbl' UNION ALL
-                    SELECT 'zen' UNION ALL
-                    SELECT 'zgh' UNION ALL
-                    SELECT 'zha' UNION ALL
-                    SELECT 'zho' UNION ALL
-                    SELECT 'znd' UNION ALL
-                    SELECT 'zul' UNION ALL
-                    SELECT 'zun' UNION ALL
-                    SELECT 'zxx' UNION ALL
-                    SELECT 'zza'
-            ) np
-            ORDER BY RAND()
-            LIMIT 1
-    )
-)
+                SELECT 
+                    CAST(RAND() * (509 - 1) + 1 AS INT64) AS numval
+            )
+))        
+;
