@@ -1,0 +1,368 @@
+CREATE OR REPLACE PROCEDURE SP_SCHEMACHANGEDETECTOR(
+    SOURCE_DATABASE     STRING,
+    SOURCE_SCHEMA       STRING,
+    SOURCE_TABLE        STRING,
+    TARGET_SCHEMA       STRING,
+    TARGET_TABLE        STRING,
+    ACTION              STRING,
+    SOURCE_EXCLUDE_COLS ARRAY,
+    TARGET_EXCLUDE_COLS ARRAY
+)
+RETURNS STRING
+LANGUAGE SQL
+EXECUTE AS CALLER
+AS
+DECLARE
+    -- =====================================================
+    -- LOCAL COPIES OF PARAMETERS
+    -- (Required for use in dynamic SQL with :var syntax)
+    -- =====================================================
+    var_source_database         STRING;
+    var_source_schema           STRING;
+    var_source_table            STRING;
+    var_target_schema           STRING;
+    var_target_table            STRING;
+    var_action                  STRING;
+
+    -- =====================================================
+    -- TIMESTAMP MICROS — used to create unique suffixes
+    -- for temp/snapshot table names and new column names
+    -- =====================================================
+    var_batch_timestamp_micros  INTEGER;
+
+    -- =====================================================
+    -- EXCLUDED COLUMN SUFFIX STRINGS
+    -- These are appended to WHERE clauses when querying
+    -- INFORMATION_SCHEMA.COLUMNS to exclude certain columns
+    -- from the schema comparison.
+    -- Example: "AND UPPER(COLUMN_NAME) NOT IN ('COL1','COL2')"
+    -- =====================================================
+    var_source_exclude_suffix   STRING DEFAULT '';
+    var_target_exclude_suffix   STRING DEFAULT '';
+
+    -- =====================================================
+    -- UNMATCHED COLUMN ARRAYS
+    -- These hold the results of the schema comparison:
+    --   source_unmatched = columns in source NOT in target
+    --   target_unmatched = columns in target NOT in source
+    --   source_unmatched_datatypes = same name, different type (source side)
+    --   target_unmatched_datatypes = same name, different type (target side)
+    -- =====================================================
+    var_source_unmatched_columns_list    ARRAY;
+    var_target_unmatched_columns_list    ARRAY;
+    var_source_unmatched_datatypes_list  ARRAY;
+    var_target_unmatched_datatypes_list  ARRAY;
+
+    -- =====================================================
+    -- MATCH FLAGS
+    -- TRUE if all column names / datatypes match between
+    -- source and target after exclusions are applied.
+    -- =====================================================
+    var_column_name_match_flag   BOOLEAN DEFAULT TRUE;
+    var_datatype_match_flag      BOOLEAN DEFAULT TRUE;
+
+    -- =====================================================
+    -- APPEND COLUMN LIST STRINGS
+    -- Used to build the dynamic INSERT statement:
+    --   var_append_source_list_string = column list for SELECT (source names)
+    --   var_append_target_list_string = column list for INSERT INTO (target names,
+    --       with timestamp suffix for new/mismatched columns)
+    -- =====================================================
+    var_append_source_list_string STRING DEFAULT '';
+    var_append_target_list_string STRING DEFAULT '';
+
+    -- =====================================================
+    -- FINAL INSERT QUERY — the dynamically built INSERT statement
+    -- =====================================================
+    var_append_insert_query      STRING DEFAULT '';
+
+    -- =====================================================
+    -- COLUMN NAME SUFFIX — timestamp suffix appended to
+    -- new or mismatched columns to avoid naming conflicts
+    -- Example: '_1234567890123456'
+    -- =====================================================
+    var_column_name_suffix       STRING DEFAULT '';
+
+    -- =====================================================
+    -- LOOP COUNTER — used in WHILE loop for ALTER TABLE
+    -- =====================================================
+    var_column_counter           INTEGER DEFAULT 1;
+
+    -- =====================================================
+    -- HELPER VARIABLES for dynamic SQL execution
+    -- =====================================================
+    var_sql                      STRING;
+    var_col_name                 STRING;
+    var_col_type                 STRING;
+    var_mismatched_count         INTEGER DEFAULT 0;
+
+    -- =====================================================
+    -- FULLY QUALIFIED TABLE NAME HELPERS
+    -- =====================================================
+    var_source_fq                STRING;
+    var_target_fq                STRING;
+    var_info_schema_fq           STRING;
+
+    -- =====================================================
+    -- SNAPSHOT TABLE NAME HELPERS
+    -- =====================================================
+    var_source_snapshot_name     STRING;
+    var_target_snapshot_name     STRING;
+    var_source_snapshot_fq       STRING;
+    var_target_snapshot_fq       STRING;
+
+BEGIN
+    -- =====================================================
+    -- STEP 0: Copy all parameters to local variables
+    -- This is required because Snowflake dynamic SQL
+    -- references local variables with :var_name syntax.
+    -- Parameters cannot always be used directly in all contexts.
+    -- =====================================================
+    var_source_database := SOURCE_DATABASE;
+    var_source_schema   := SOURCE_SCHEMA;
+    var_source_table    := SOURCE_TABLE;
+    var_target_schema   := TARGET_SCHEMA;
+    var_target_table    := TARGET_TABLE;
+    var_action          := UPPER(ACTION);
+
+    -- =====================================================
+    -- STEP 0b: Build fully qualified name helpers
+    -- =====================================================
+    var_source_fq      := var_source_database || '.' || var_source_schema || '.' || var_source_table;
+    var_target_fq      := var_source_database || '.' || var_target_schema || '.' || var_target_table;
+    var_info_schema_fq := var_source_database || '.INFORMATION_SCHEMA.COLUMNS';
+
+    -- =====================================================
+    -- STEP 0c: Generate timestamp micros for unique naming
+    -- BigQuery: UNIX_MICROS(CURRENT_TIMESTAMP())
+    -- Snowflake: DATE_PART('EPOCH_MICROSECOND', CURRENT_TIMESTAMP())
+    -- =====================================================
+    var_batch_timestamp_micros := DATE_PART('EPOCH_MICROSECOND', CURRENT_TIMESTAMP())::INTEGER;
+
+    -- Build snapshot table names using the timestamp
+    var_source_snapshot_name := 'TMP_SNAPSHOT_SOURCE_' || var_source_table || '_' || var_batch_timestamp_micros::STRING;
+    var_target_snapshot_name := 'TMP_SNAPSHOT_TARGET_' || var_target_table || '_' || var_batch_timestamp_micros::STRING;
+    var_source_snapshot_fq   := var_source_database || '.' || var_target_schema || '.' || var_source_snapshot_name;
+    var_target_snapshot_fq   := var_source_database || '.' || var_target_schema || '.' || var_target_snapshot_name;
+
+    -- =====================================================
+    -- SECTION 1: Build excluded column suffix for WHERE clause
+    -- =====================================================
+    -- If the caller passed columns to exclude from the source
+    -- schema comparison, build an AND clause like:
+    --   AND UPPER(COLUMN_NAME) NOT IN ('COL1','COL2')
+    -- This is appended to the INFORMATION_SCHEMA query.
+    -- =====================================================
+    IF (ARRAY_SIZE(SOURCE_EXCLUDE_COLS) > 0) THEN
+        var_source_exclude_suffix :=
+            ' AND UPPER(COLUMN_NAME) NOT IN (\''
+            || UPPER(ARRAY_TO_STRING(SOURCE_EXCLUDE_COLS, '\',\''))
+            || '\')';
+    ELSE
+        var_source_exclude_suffix := '';
+    END IF;
+
+    -- Same logic for target excluded columns
+    IF (ARRAY_SIZE(TARGET_EXCLUDE_COLS) > 0) THEN
+        var_target_exclude_suffix :=
+            ' AND UPPER(COLUMN_NAME) NOT IN (\''
+            || UPPER(ARRAY_TO_STRING(TARGET_EXCLUDE_COLS, '\',\''))
+            || '\')';
+    ELSE
+        var_target_exclude_suffix := '';
+    END IF;
+
+    -- =====================================================
+    -- SECTION 2: Read INFORMATION_SCHEMA.COLUMNS into temp tables
+    -- =====================================================
+    -- Query the source database's INFORMATION_SCHEMA.COLUMNS
+    -- to get column metadata for the source table.
+    -- Excluded columns (if any) are filtered out via the suffix.
+    -- Note: is_partitioning_column and clustering_ordinal_position
+    --       are BigQuery-specific and removed for Snowflake.
+    -- =====================================================
+
+    -- Drop temp tables if they exist from a previous run
+    EXECUTE IMMEDIATE 'DROP TABLE IF EXISTS tmp_source_table_info';
+    EXECUTE IMMEDIATE 'DROP TABLE IF EXISTS tmp_target_table_info';
+
+    -- Create temp table for SOURCE column metadata
+    var_sql := 'CREATE TEMPORARY TABLE tmp_source_table_info AS '
+        || 'SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, '
+        || '       COLUMN_NAME, ORDINAL_POSITION, DATA_TYPE '
+        || 'FROM ' || var_info_schema_fq || ' '
+        || 'WHERE UPPER(TABLE_SCHEMA) = UPPER(\'' || var_source_schema || '\') '
+        || '  AND UPPER(TABLE_NAME) = UPPER(\'' || var_source_table || '\')'
+        || var_source_exclude_suffix;
+    EXECUTE IMMEDIATE :var_sql;
+
+    -- Create temp table for TARGET column metadata
+    var_sql := 'CREATE TEMPORARY TABLE tmp_target_table_info AS '
+        || 'SELECT TABLE_CATALOG, TABLE_SCHEMA, TABLE_NAME, '
+        || '       COLUMN_NAME, ORDINAL_POSITION, DATA_TYPE '
+        || 'FROM ' || var_info_schema_fq || ' '
+        || 'WHERE UPPER(TABLE_SCHEMA) = UPPER(\'' || var_target_schema || '\') '
+        || '  AND UPPER(TABLE_NAME) = UPPER(\'' || var_target_table || '\')'
+        || var_target_exclude_suffix;
+    EXECUTE IMMEDIATE :var_sql;
+
+    -- =====================================================
+    -- SECTION 3: Snapshot tables (BQ workaround for schema caching)
+    -- =====================================================
+    -- In BigQuery, INFORMATION_SCHEMA could return stale results
+    -- due to schema caching. The workaround was to create empty
+    -- snapshot tables and use them to filter the temp tables.
+    -- Snowflake's INFORMATION_SCHEMA is always up to date, but
+    -- we keep this logic for parity with the original SP.
+    -- =====================================================
+
+    -- Create empty snapshot table for source (no rows, just schema)
+    var_sql := 'CREATE OR REPLACE TABLE ' || var_source_snapshot_fq
+        || ' AS SELECT * FROM ' || var_source_fq || ' WHERE 1=2';
+    EXECUTE IMMEDIATE :var_sql;
+
+    -- Create empty snapshot table for target (no rows, just schema)
+    var_sql := 'CREATE OR REPLACE TABLE ' || var_target_snapshot_fq
+        || ' AS SELECT * FROM ' || var_target_fq || ' WHERE 1=2';
+    EXECUTE IMMEDIATE :var_sql;
+
+    -- Rebuild tmp_source_table_info filtered by snapshot columns
+    -- This ensures we only compare columns that actually exist
+    -- in the current table schema (not stale metadata).
+    EXECUTE IMMEDIATE 'DROP TABLE IF EXISTS tmp_source_table_info_filtered';
+    var_sql := 'CREATE TEMPORARY TABLE tmp_source_table_info_filtered AS '
+        || 'SELECT s.* FROM tmp_source_table_info s '
+        || 'INNER JOIN ' || var_source_database || '.INFORMATION_SCHEMA.COLUMNS snap '
+        || '  ON UPPER(s.COLUMN_NAME) = UPPER(snap.COLUMN_NAME) '
+        || ' WHERE UPPER(snap.TABLE_SCHEMA) = UPPER(\'' || var_target_schema || '\') '
+        || '   AND UPPER(snap.TABLE_NAME) = UPPER(\'' || var_source_snapshot_name || '\')';
+    EXECUTE IMMEDIATE :var_sql;
+
+    -- Replace the original temp table with the filtered version
+    EXECUTE IMMEDIATE 'DROP TABLE IF EXISTS tmp_source_table_info';
+    EXECUTE IMMEDIATE 'ALTER TABLE tmp_source_table_info_filtered RENAME TO tmp_source_table_info';
+
+    -- Rebuild tmp_target_table_info filtered by snapshot columns
+    EXECUTE IMMEDIATE 'DROP TABLE IF EXISTS tmp_target_table_info_filtered';
+    var_sql := 'CREATE TEMPORARY TABLE tmp_target_table_info_filtered AS '
+        || 'SELECT t.* FROM tmp_target_table_info t '
+        || 'INNER JOIN ' || var_source_database || '.INFORMATION_SCHEMA.COLUMNS snap '
+        || '  ON UPPER(t.COLUMN_NAME) = UPPER(snap.COLUMN_NAME) '
+        || ' WHERE UPPER(snap.TABLE_SCHEMA) = UPPER(\'' || var_target_schema || '\') '
+        || '   AND UPPER(snap.TABLE_NAME) = UPPER(\'' || var_target_snapshot_name || '\')';
+    EXECUTE IMMEDIATE :var_sql;
+
+    -- Replace the original temp table with the filtered version
+    EXECUTE IMMEDIATE 'DROP TABLE IF EXISTS tmp_target_table_info';
+    EXECUTE IMMEDIATE 'ALTER TABLE tmp_target_table_info_filtered RENAME TO tmp_target_table_info';
+
+    -- Drop the snapshot tables — they are no longer needed
+    var_sql := 'DROP TABLE IF EXISTS ' || var_source_snapshot_fq;
+    EXECUTE IMMEDIATE :var_sql;
+    var_sql := 'DROP TABLE IF EXISTS ' || var_target_snapshot_fq;
+    EXECUTE IMMEDIATE :var_sql;
+
+    -- =====================================================
+    -- SECTION 4: Detect column NAME mismatches
+    -- =====================================================
+    -- Find columns that exist in source but NOT in target,
+    -- and columns that exist in target but NOT in source.
+    -- Uses LEFT JOIN where the other side is NULL.
+    -- Results are stored into ARRAY variables.
+    -- =====================================================
+
+    -- Source columns not in target
+    EXECUTE IMMEDIATE 'DROP TABLE IF EXISTS tmp_source_unmatched_cols';
+    EXECUTE IMMEDIATE
+        'CREATE TEMPORARY TABLE tmp_source_unmatched_cols AS '
+        || 'SELECT src.COLUMN_NAME '
+        || 'FROM tmp_source_table_info src '
+        || 'LEFT JOIN tmp_target_table_info tgt '
+        || '  ON UPPER(src.COLUMN_NAME) = UPPER(tgt.COLUMN_NAME) '
+        || 'WHERE tgt.COLUMN_NAME IS NULL';
+
+    SELECT ARRAY_AGG(COLUMN_NAME) INTO :var_source_unmatched_columns_list
+    FROM tmp_source_unmatched_cols;
+
+    -- Target columns not in source
+    EXECUTE IMMEDIATE 'DROP TABLE IF EXISTS tmp_target_unmatched_cols';
+    EXECUTE IMMEDIATE
+        'CREATE TEMPORARY TABLE tmp_target_unmatched_cols AS '
+        || 'SELECT tgt.COLUMN_NAME '
+        || 'FROM tmp_target_table_info tgt '
+        || 'LEFT JOIN tmp_source_table_info src '
+        || '  ON UPPER(tgt.COLUMN_NAME) = UPPER(src.COLUMN_NAME) '
+        || 'WHERE src.COLUMN_NAME IS NULL';
+
+    SELECT ARRAY_AGG(COLUMN_NAME) INTO :var_target_unmatched_columns_list
+    FROM tmp_target_unmatched_cols;
+
+    -- Set the column name match flag
+    -- TRUE if both arrays are empty (NULL or size 0)
+    IF (var_source_unmatched_columns_list IS NULL AND var_target_unmatched_columns_list IS NULL) THEN
+        var_column_name_match_flag := TRUE;
+    ELSEIF (COALESCE(ARRAY_SIZE(var_source_unmatched_columns_list), 0) = 0
+        AND COALESCE(ARRAY_SIZE(var_target_unmatched_columns_list), 0) = 0) THEN
+        var_column_name_match_flag := TRUE;
+    ELSE
+        var_column_name_match_flag := FALSE;
+    END IF;
+
+    -- =====================================================
+    -- SECTION 5: Detect DATATYPE mismatches
+    -- =====================================================
+    -- Find columns with the same name but different DATA_TYPE
+    -- between source and target. This catches cases where a
+    -- column was altered (e.g., STRING → INTEGER).
+    -- =====================================================
+
+    -- Source columns with data
+
+    -- =====================================================
+    -- SECTION 5: Detect DATATYPE mismatches (continued)
+    -- =====================================================
+    EXECUTE IMMEDIATE 'DROP TABLE IF EXISTS tmp_source_unmatched_datatypes';
+    EXECUTE IMMEDIATE
+        'CREATE TEMPORARY TABLE tmp_source_unmatched_datatypes AS '
+        || 'SELECT src.COLUMN_NAME, src.DATA_TYPE AS SOURCE_DATA_TYPE, tgt.DATA_TYPE AS TARGET_DATA_TYPE '
+        || 'FROM tmp_source_table_info src '
+        || 'INNER JOIN tmp_target_table_info tgt '
+        || '  ON UPPER(src.COLUMN_NAME) = UPPER(tgt.COLUMN_NAME) '
+        || 'WHERE UPPER(src.DATA_TYPE) <> UPPER(tgt.DATA_TYPE)';
+
+    SELECT COUNT(*) INTO :var_mismatched_count FROM tmp_source_unmatched_datatypes;
+
+    IF (var_mismatched_count > 0) THEN
+        var_datatype_match_flag := FALSE;
+    ELSE
+        var_datatype_match_flag := TRUE;
+    END IF;
+
+    -- =====================================================
+    -- SECTION 6: Take action based on var_action parameter
+    -- =====================================================
+    -- Add your ALTER TABLE / INSERT / APPEND logic here
+    -- based on the value of var_action ('DETECT', 'APPEND', etc.)
+    -- =====================================================
+
+    IF (var_column_name_match_flag = TRUE AND var_datatype_match_flag = TRUE) THEN
+        RETURN 'SCHEMAS MATCH - No changes detected.';
+    ELSE
+        -- TODO: Implement your ALTER/APPEND logic here
+        RETURN 'SCHEMA MISMATCH DETECTED. Column name match: ' 
+            || var_column_name_match_flag::STRING 
+            || ', Datatype match: ' 
+            || var_datatype_match_flag::STRING;
+    END IF;
+
+    -- =====================================================
+    -- CLEANUP
+    -- =====================================================
+    EXECUTE IMMEDIATE 'DROP TABLE IF EXISTS tmp_source_table_info';
+    EXECUTE IMMEDIATE 'DROP TABLE IF EXISTS tmp_target_table_info';
+    EXECUTE IMMEDIATE 'DROP TABLE IF EXISTS tmp_source_unmatched_cols';
+    EXECUTE IMMEDIATE 'DROP TABLE IF EXISTS tmp_target_unmatched_cols';
+    EXECUTE IMMEDIATE 'DROP TABLE IF EXISTS tmp_source_unmatched_datatypes';
+
+    RETURN 'COMPLETE';
+END;

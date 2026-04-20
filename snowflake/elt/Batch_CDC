@@ -1,0 +1,243 @@
+
+CREATE OR REPLACE PROCEDURE BATCH_CDC_SP(
+    SOURCE_TABLE_ARRAY  ARRAY,
+    META_TABLE_STRUCT   OBJECT,
+    TARGET_SCHEMA       STRING
+)
+RETURNS STRING
+LANGUAGE SQL
+EXECUTE AS CALLER
+AS
+$$
+DECLARE
+
+    -- Metadata variables
+    meta_database           STRING;
+    meta_schema             STRING;
+    meta_table_name         STRING;
+    meta_key_column         STRING;
+    meta_timestamp_column   STRING;
+    meta_fqn                STRING;
+
+    -- Timestamp boundaries
+    last_run_timestamp      TIMESTAMP_NTZ;
+    current_run_timestamp   TIMESTAMP_NTZ;
+
+    -- Loop control
+    row_range               INTEGER;
+    counter                 INTEGER DEFAULT 1;
+
+    -- Per-iteration source/target variables
+    src_database            STRING;
+    src_schema              STRING;
+    src_table_name          STRING;
+    src_timestamp_column    STRING;
+    src_fqn                 STRING;
+    tgt_table_name          STRING;
+    tgt_fqn                 STRING;
+
+    -- Dynamic SQL
+    dml_prefix              STRING;
+    where_clause            STRING;
+    full_query              STRING;
+    sql_stmt                STRING;
+
+    -- Array converted to string
+    array_as_string         STRING;
+
+    -- Table existence check
+    table_exists_count      INTEGER;
+
+    -- Return
+    return_message          STRING DEFAULT 'SUCCESS';
+
+BEGIN
+
+    -- =========================================================================
+    -- STEP 1: UNPACK META_TABLE_STRUCT
+    -- =========================================================================
+
+    meta_database         := META_TABLE_STRUCT['meta_database']::STRING;
+    meta_schema           := META_TABLE_STRUCT['meta_schema']::STRING;
+    meta_table_name       := META_TABLE_STRUCT['meta_table_name']::STRING;
+    meta_key_column       := META_TABLE_STRUCT['meta_key_column']::STRING;
+    meta_timestamp_column := META_TABLE_STRUCT['meta_timestamp_column']::STRING;
+    meta_fqn              := meta_database || '.' || meta_schema || '.' || meta_table_name;
+
+
+    -- =========================================================================
+    -- STEP 2: READ LAST RUN TIMESTAMP
+    -- =========================================================================
+
+    sql_stmt :=
+        'CREATE OR REPLACE TEMPORARY TABLE TMP_LAST_TS AS '
+        || 'SELECT COALESCE(MAX(' || meta_timestamp_column || '), '
+        || '''1900-01-01 00:00:00''::TIMESTAMP_NTZ) AS LAST_TS '
+        || 'FROM ' || meta_fqn;
+
+    EXECUTE IMMEDIATE :sql_stmt;
+
+    SELECT LAST_TS INTO last_run_timestamp FROM TMP_LAST_TS;
+
+
+    -- =========================================================================
+    -- STEP 3: SET CURRENT RUN TIMESTAMP
+    -- =========================================================================
+
+    current_run_timestamp := CURRENT_TIMESTAMP()::TIMESTAMP_NTZ;
+
+
+    -- =========================================================================
+    -- STEP 4: FLATTEN SOURCE_TABLE_ARRAY INTO TEMP TABLE
+    -- =========================================================================
+    -- FIX: Convert ARRAY to STRING, then replace single quotes with escaped
+    --      quotes so it can be safely embedded in dynamic SQL
+    --      Uses REPLACE to escape any single quotes in the JSON string
+
+    array_as_string := REPLACE(SOURCE_TABLE_ARRAY::STRING, '''', '''''');
+
+    sql_stmt :=
+        'CREATE OR REPLACE TEMPORARY TABLE CDC_SOURCE_CONFIG AS '
+        || 'SELECT '
+        || '    ROW_NUMBER() OVER (ORDER BY f.INDEX)         AS ROW_NUM, '
+        || '    f.VALUE:source_database::STRING              AS SOURCE_DATABASE, '
+        || '    f.VALUE:source_schema::STRING                AS SOURCE_SCHEMA, '
+        || '    f.VALUE:source_table_name::STRING            AS SOURCE_TABLE_NAME, '
+        || '    f.VALUE:source_timestamp_column::STRING      AS SOURCE_TIMESTAMP_COLUMN, '
+        || '    f.VALUE:target_table_name::STRING            AS TARGET_TABLE_NAME '
+        || 'FROM TABLE(FLATTEN(INPUT => PARSE_JSON('''
+        || array_as_string
+        || '''))) AS f';
+
+    EXECUTE IMMEDIATE :sql_stmt;
+
+
+    -- =========================================================================
+    -- STEP 5: GET COUNT OF SOURCE TABLES
+    -- =========================================================================
+
+    SELECT COUNT(*) INTO row_range FROM CDC_SOURCE_CONFIG;
+
+
+    -- =========================================================================
+    -- STEP 6: WHILE LOOP — PROCESS EACH SOURCE TABLE
+    -- =========================================================================
+
+    counter := 1;
+
+    WHILE (counter <= row_range) DO
+
+        -- ------------------------------------------------------------------
+        -- Step 6a: Read current row into temp table then into variables
+        -- ------------------------------------------------------------------
+
+        sql_stmt :=
+            'CREATE OR REPLACE TEMPORARY TABLE TMP_CURRENT_ROW AS '
+            || 'SELECT '
+            || '    SOURCE_DATABASE, '
+            || '    SOURCE_SCHEMA, '
+            || '    SOURCE_TABLE_NAME, '
+            || '    SOURCE_TIMESTAMP_COLUMN, '
+            || '    TARGET_TABLE_NAME '
+            || 'FROM CDC_SOURCE_CONFIG '
+            || 'WHERE ROW_NUM = ' || counter::STRING;
+
+        EXECUTE IMMEDIATE :sql_stmt;
+
+        SELECT SOURCE_DATABASE          INTO src_database         FROM TMP_CURRENT_ROW;
+        SELECT SOURCE_SCHEMA            INTO src_schema           FROM TMP_CURRENT_ROW;
+        SELECT SOURCE_TABLE_NAME        INTO src_table_name       FROM TMP_CURRENT_ROW;
+        SELECT SOURCE_TIMESTAMP_COLUMN  INTO src_timestamp_column FROM TMP_CURRENT_ROW;
+        SELECT TARGET_TABLE_NAME        INTO tgt_table_name       FROM TMP_CURRENT_ROW;
+
+        -- Build fully qualified names
+        src_fqn := src_database || '.' || src_schema    || '.' || src_table_name;
+        tgt_fqn := src_database || '.' || TARGET_SCHEMA || '.' || tgt_table_name;
+
+
+        -- ------------------------------------------------------------------
+        -- Step 6b: Check if target table exists
+        -- ------------------------------------------------------------------
+
+        sql_stmt :=
+            'CREATE OR REPLACE TEMPORARY TABLE TMP_TABLE_CHECK AS '
+            || 'SELECT COUNT(*) AS TBL_COUNT '
+            || 'FROM ' || src_database || '.INFORMATION_SCHEMA.TABLES '
+            || 'WHERE TABLE_SCHEMA = UPPER(''' || TARGET_SCHEMA  || ''') '
+            || 'AND   TABLE_NAME   = UPPER(''' || tgt_table_name || ''')';
+
+        EXECUTE IMMEDIATE :sql_stmt;
+
+        SELECT TBL_COUNT INTO table_exists_count FROM TMP_TABLE_CHECK;
+
+
+        -- ------------------------------------------------------------------
+        -- Step 6c/6d: Set DML prefix
+        -- ------------------------------------------------------------------
+
+        IF (table_exists_count = 0) THEN
+            dml_prefix := 'CREATE OR REPLACE TABLE ' || tgt_fqn || ' AS ';
+        ELSE
+            dml_prefix := 'INSERT INTO ' || tgt_fqn || ' ';
+        END IF;
+
+
+        -- ------------------------------------------------------------------
+        -- Step 6e: Build WHERE clause
+        -- ------------------------------------------------------------------
+
+        where_clause :=
+            ' WHERE CAST(' || src_timestamp_column || ' AS TIMESTAMP_NTZ) > '
+            || '''' || last_run_timestamp::STRING    || '''::TIMESTAMP_NTZ'
+            || ' AND CAST(' || src_timestamp_column  || ' AS TIMESTAMP_NTZ) <= '
+            || '''' || current_run_timestamp::STRING || '''::TIMESTAMP_NTZ';
+
+
+        -- ------------------------------------------------------------------
+        -- Step 6f: Assemble and execute full CDC query
+        -- ------------------------------------------------------------------
+
+        full_query :=
+            dml_prefix
+            || ' SELECT * FROM ' || src_fqn
+            || where_clause;
+
+        EXECUTE IMMEDIATE :full_query;
+
+
+        -- ------------------------------------------------------------------
+        -- Step 6g: Increment counter
+        -- ------------------------------------------------------------------
+
+        counter := counter + 1;
+
+    END WHILE;
+
+
+    -- =========================================================================
+    -- STEP 7: UPDATE METADATA TABLE
+    -- =========================================================================
+
+    BEGIN TRANSACTION;
+
+        sql_stmt :=
+            'UPDATE ' || meta_fqn
+            || ' SET '  || meta_key_column      || ' = ' || meta_key_column || ' + 1, '
+            ||             meta_timestamp_column || ' = '''
+            ||             current_run_timestamp::STRING || '''::TIMESTAMP_NTZ'
+            || ' WHERE 1=1';
+
+        EXECUTE IMMEDIATE :sql_stmt;
+
+    COMMIT;
+
+    RETURN return_message;
+
+EXCEPTION
+    WHEN OTHER THEN
+        ROLLBACK;
+        return_message := 'ERROR: ' || SQLERRM || ' | SQLCODE: ' || SQLCODE::STRING;
+        RETURN return_message;
+
+END;
+$$;
