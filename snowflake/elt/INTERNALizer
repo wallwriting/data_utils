@@ -1,0 +1,205 @@
+CREATE OR REPLACE PROCEDURE SP_LOAD_EXTERNAL_TO_INTERNAL(
+    FORMAT_TYPE STRING,
+    SOURCE_URI_ARRAY ARRAY,
+    TARGET_SCHEMA STRING,
+    TARGET_EXTERNAL_TABLE STRING,
+    TARGET_INTERNAL_TABLE STRING,
+    PRIMARY_KEY_ARRAY ARRAY
+)
+RETURNS STRING
+LANGUAGE SQL
+EXECUTE AS CALLER
+AS
+$$
+DECLARE
+    -- Variables for URI construction
+    varSourceUriModified STRING;
+    varUriLength INT;
+    
+    -- Variables for loop and key column processing
+    varRange INT;
+    varCounter INT;
+    varCurrentColumn STRING;
+    varJoinSyntax STRING;
+    varStringLength INT;
+    varKeyColumnList STRING;
+    
+    -- Variables for table existence check
+    varTableCount INT;
+    
+    -- Variables to hold parameter values for use in dynamic SQL
+    varFormatType STRING;
+    varTargetSchema STRING;
+    varTargetExternalTable STRING;
+    varTargetInternalTable STRING;
+    
+    -- Variable for dynamic SQL statements
+    varSQL STRING;
+    
+    -- Variable for stage name
+    varStageName STRING;
+    varStageLocation STRING;
+BEGIN
+    -- =========================================================
+    -- SECTION 1: Initialize variables from parameters
+    -- We copy parameters into local variables so they can be
+    -- safely embedded in dynamic SQL strings.
+    -- =========================================================
+    varFormatType := FORMAT_TYPE;
+    varTargetSchema := TARGET_SCHEMA;
+    varTargetExternalTable := TARGET_EXTERNAL_TABLE;
+    varTargetInternalTable := TARGET_INTERNAL_TABLE;
+    
+    -- =========================================================
+    -- SECTION 2: Build primary key column list and join syntax
+    -- Flatten the PRIMARY_KEY_ARRAY into a temporary table with
+    -- row IDs, then loop through to build the JOIN condition
+    -- and the GROUP BY column list.
+    -- =========================================================
+    
+    -- Create a temporary table from the primary key array
+    CREATE OR REPLACE TEMPORARY TABLE tmp_column_list AS
+    SELECT ROW_NUMBER() OVER (ORDER BY f.INDEX) AS row_id,
+           f.VALUE::STRING AS column_name
+    FROM TABLE(FLATTEN(INPUT => :PRIMARY_KEY_ARRAY)) f;
+    
+    -- Get the count of primary key columns
+    SELECT COUNT(1) INTO :varRange FROM tmp_column_list;
+    
+    -- Initialize loop variables
+    varCounter := 1;
+    varJoinSyntax := '';
+    varKeyColumnList := '';
+    
+    -- Loop through each primary key column to build:
+    --   varJoinSyntax:    s.payload.col1 = mx.col1 AND s.payload.col2 = mx.col2
+    --   varKeyColumnList: payload.col1, payload.col2
+    WHILE (varCounter <= varRange) DO
+        SELECT column_name INTO :varCurrentColumn
+        FROM tmp_column_list
+        WHERE row_id = :varCounter;
+        
+        varJoinSyntax := varJoinSyntax || ' s.payload.' || varCurrentColumn || ' = mx.' || varCurrentColumn || ' AND';
+        varKeyColumnList := varKeyColumnList || ' payload.' || varCurrentColumn || ', ';
+        varCounter := varCounter + 1;
+    END WHILE;
+    
+    -- Trim trailing ' AND' from join syntax (4 characters including leading space)
+    varStringLength := LENGTH(varJoinSyntax);
+    varJoinSyntax := LEFT(varJoinSyntax, varStringLength - 3);
+    
+    -- Trim trailing ', ' from key column list (2 characters including leading space)
+    varStringLength := LENGTH(varKeyColumnList);
+    varKeyColumnList := LEFT(varKeyColumnList, varStringLength - 2);
+    
+    -- =========================================================
+    -- SECTION 3: Build the source URI and create a temporary
+    -- named stage pointing to the URI path. Then create the
+    -- external table referencing that stage.
+    -- =========================================================
+    
+    -- Convert the array to a comma-separated string for the stage location
+    -- We use the first URI as the stage location base
+    -- For Snowflake, we need a stage that points to the cloud storage location
+    varStageLocation := SOURCE_URI_ARRAY[0]::STRING;
+    
+    -- Remove any surrounding quotes from the URI
+    varStageLocation := REPLACE(varStageLocation, '"', '');
+    
+    -- Create a unique stage name based on the external table name
+    varStageName := varTargetSchema || '.stg_' || varTargetExternalTable;
+    
+    -- Create a temporary stage pointing to the source URI
+    varSQL := 'CREATE OR REPLACE STAGE ' || varStageName
+              || ' URL = ''' || varStageLocation || ''''
+              || ' FILE_FORMAT = (TYPE = ' || varFormatType || ')';
+    EXECUTE IMMEDIATE :varSQL;
+    
+    -- Create the external table referencing the stage
+    varSQL := 'CREATE OR REPLACE EXTERNAL TABLE ' || varTargetSchema || '.' || varTargetExternalTable
+              || ' LOCATION = @' || varStageName
+              || ' FILE_FORMAT = (TYPE = ' || varFormatType || ')'
+              || ' AUTO_REFRESH = FALSE';
+    EXECUTE IMMEDIATE :varSQL;
+    
+    -- =========================================================
+    -- SECTION 4: Check if the internal (target) table exists
+    -- Use INFORMATION_SCHEMA.TABLES instead of BigQuery's
+    -- __TABLES_SUMMARY__. Write result to temp table, then
+    -- SELECT INTO a variable.
+    -- =========================================================
+    
+    CREATE OR REPLACE TEMPORARY TABLE tmp_tablechecker AS
+    SELECT COUNT(*) AS cnt
+    FROM INFORMATION_SCHEMA.TABLES
+    WHERE UPPER(TABLE_SCHEMA) = UPPER(:varTargetSchema)
+      AND UPPER(TABLE_NAME) = UPPER(:varTargetInternalTable);
+    
+    SELECT cnt INTO :varTableCount FROM tmp_tablechecker;
+    
+    -- =========================================================
+    -- SECTION 5: Upsert logic
+    -- If the internal table does not exist, create it with a
+    -- CTAS from the external table.
+    -- If it does exist, perform a DELETE + INSERT (upsert)
+    -- wrapped in a transaction to ensure atomicity.
+    -- =========================================================
+    
+    IF (varTableCount = 0) THEN
+        -- Table does not exist: create it from the external table data
+        varSQL := 'CREATE OR REPLACE TABLE ' || varTargetSchema || '.' || varTargetInternalTable || ' AS '
+                  || 'SELECT payload.*, source_metadata.*, source_timestamp FROM '
+                  || varTargetSchema || '.' || varTargetExternalTable;
+        EXECUTE IMMEDIATE :varSQL;
+    ELSE
+        -- Table exists: perform transactional DELETE + INSERT (upsert)
+        BEGIN TRANSACTION;
+        
+        -- Delete existing rows that match incoming data on primary keys
+        varSQL := 'DELETE FROM ' || varTargetSchema || '.' || varTargetInternalTable || ' mx '
+                  || 'WHERE EXISTS (SELECT 1 FROM '
+                  || varTargetSchema || '.' || varTargetExternalTable || ' s WHERE ' || varJoinSyntax || ')';
+        EXECUTE IMMEDIATE :varSQL;
+        
+        -- Insert only the latest version of each record (by source_timestamp)
+        varSQL := 'INSERT INTO ' || varTargetSchema || '.' || varTargetInternalTable
+                  || ' SELECT s.payload.*, s.source_metadata.*, s.source_timestamp'
+                  || ' FROM ' || varTargetSchema || '.' || varTargetExternalTable || ' s'
+                  || ' JOIN ('
+                  || '   SELECT ' || varKeyColumnList || ', MAX(source_timestamp) AS source_timestamp'
+                  || '   FROM ' || varTargetSchema || '.' || varTargetExternalTable
+                  || '   GROUP BY ' || varKeyColumnList
+                  || ' ) mx ON ' || varJoinSyntax || ' AND s.source_timestamp = mx.source_timestamp';
+        EXECUTE IMMEDIATE :varSQL;
+        
+        COMMIT;
+    END IF;
+    
+    -- =========================================================
+    -- SECTION 6: Cleanup
+    -- Drop the external table and stage after processing
+    -- =========================================================
+    
+    varSQL := 'DROP TABLE IF EXISTS ' || varTargetSchema || '.' || varTargetExternalTable;
+    EXECUTE IMMEDIATE :varSQL;
+    
+    varSQL := 'DROP STAGE IF EXISTS ' || varStageName;
+    EXECUTE IMMEDIATE :varSQL;
+    
+    -- Drop temporary tables
+    DROP TABLE IF EXISTS tmp_column_list;
+    DROP TABLE IF EXISTS tmp_tablechecker;
+    
+    RETURN 'SUCCESS';
+    
+-- =========================================================
+-- SECTION 7: Error handling
+-- Catch any exception, rollback the transaction, and return
+-- the error message.
+-- =========================================================
+EXCEPTION
+    WHEN OTHER THEN
+        ROLLBACK;
+        RETURN 'ERROR: ' || SQLERRM;
+END;
+$$;

@@ -1,0 +1,240 @@
+CREATE OR REPLACE PROCEDURE UPSERT_VERSION_SP(
+    SOURCE_DATABASE      STRING,  -- Snowflake database (was GCP project in BigQuery)
+    SOURCE_SCHEMA        STRING,  -- Snowflake schema (was BQ dataset)
+    SOURCE_TABLE         STRING,  -- Source table name
+    SOURCE_VERSION_COL   STRING,  -- Version number column for MAX version logic
+    SOURCE_DML_INDICATOR STRING,  -- DML flag column name, or 'X' to load all rows
+    JOIN_KEY             STRING,  -- Primary key column for DELETE + JOIN matching
+    TARGET_SCHEMA        STRING,  -- Target schema (was target dataset in BQ)
+    TARGET_TABLE         STRING   -- Target table name
+)
+RETURNS STRING
+LANGUAGE SQL
+EXECUTE AS CALLER
+AS
+DECLARE
+    -- =========================================================
+    -- LOCAL COPIES OF PARAMETERS
+    -- We copy all parameters into local variables so they can
+    -- be safely used in dynamic SQL via :var_name binding.
+    -- =========================================================
+    var_source_database      STRING;
+    var_source_schema        STRING;
+    var_source_table         STRING;
+    var_source_version_col   STRING;
+    var_source_dml_indicator STRING;
+    var_join_key             STRING;
+    var_target_schema        STRING;
+    var_target_table         STRING;
+
+    -- =========================================================
+    -- SESSION NAME
+    -- Unique identifier built from schema + table names to
+    -- prevent temp table conflicts when multiple calls run
+    -- in the same session/transaction.
+    -- =========================================================
+    var_session_name STRING;
+
+    -- =========================================================
+    -- COLUMN LIST VARIABLES
+    -- var_col_list        → plain column list:    col1, col2, col3
+    -- var_prefix_col_list → prefixed column list: src.col1, src.col2, src.col3
+    -- These are built dynamically from INFORMATION_SCHEMA by
+    -- matching columns that exist in BOTH source and target
+    -- with the SAME data type.
+    -- =========================================================
+    var_col_list        STRING;
+    var_prefix_col_list STRING;
+
+    -- =========================================================
+    -- DML INDICATOR FILTER
+    -- If SOURCE_DML_INDICATOR = 'X' → '1=1' (load all rows)
+    -- Otherwise → 'src.<dml_col> IN (''I'', ''U'')' (only inserts/updates)
+    -- =========================================================
+    var_finish_insert STRING;
+
+    -- =========================================================
+    -- DYNAMIC SQL STATEMENT VARIABLES
+    -- Each holds a fully-built SQL string that will be
+    -- executed via EXECUTE IMMEDIATE.
+    -- =========================================================
+    var_col_list_sql STRING;
+    var_delete_sql   STRING;
+    var_insert_sql   STRING;
+
+BEGIN
+    -- =========================================================
+    -- STEP 1: COPY PARAMETERS INTO LOCAL VARIABLES
+    -- Required so we can reference them with :colon syntax
+    -- inside dynamic and non-dynamic SQL statements.
+    -- =========================================================
+    var_source_database      := SOURCE_DATABASE;
+    var_source_schema        := SOURCE_SCHEMA;
+    var_source_table         := SOURCE_TABLE;
+    var_source_version_col   := SOURCE_VERSION_COL;
+    var_source_dml_indicator := SOURCE_DML_INDICATOR;
+    var_join_key             := JOIN_KEY;
+    var_target_schema        := TARGET_SCHEMA;
+    var_target_table         := TARGET_TABLE;
+
+    -- =========================================================
+    -- STEP 2: BUILD SESSION NAME
+    -- Concatenation of schema + table names to uniquely
+    -- identify this call's temp table rows.
+    -- =========================================================
+    var_session_name := var_source_schema || var_source_table || var_target_schema || var_target_table;
+
+    -- =========================================================
+    -- STEP 3: BUILD COLUMN LIST FROM INFORMATION_SCHEMA
+    -- 
+    -- This is the most important part of the SP. We query
+    -- INFORMATION_SCHEMA.COLUMNS for both the source and
+    -- target tables, joining on COLUMN_NAME and DATA_TYPE.
+    -- Only columns that exist in BOTH tables with matching
+    -- data types are included.
+    --
+    -- We use LISTAGG to produce:
+    --   column_list        → "col1, col2, col3"
+    --   prefix_column_list → "src.col1, src.col2, src.col3"
+    --
+    -- Results are written to a TEMPORARY TABLE, then read
+    -- into variables via SELECT INTO.
+    -- =========================================================
+    var_col_list_sql :=
+        'CREATE OR REPLACE TEMPORARY TABLE TMP_UPSERT_COLUMN_LIST AS '
+        || 'SELECT '
+        || '    ''' || var_session_name || ''' AS session_name, '
+        || '    LISTAGG(tgt.COLUMN_NAME, '', '') WITHIN GROUP (ORDER BY tgt.ORDINAL_POSITION) AS column_list, '
+        || '    LISTAGG(''src.'' || tgt.COLUMN_NAME, '', '') WITHIN GROUP (ORDER BY tgt.ORDINAL_POSITION) AS prefix_column_list '
+        || 'FROM ' || var_source_database || '.INFORMATION_SCHEMA.COLUMNS tgt '
+        || 'JOIN ' || var_source_database || '.INFORMATION_SCHEMA.COLUMNS src '
+        || '    ON UPPER(tgt.COLUMN_NAME) = UPPER(src.COLUMN_NAME) '
+        || '    AND UPPER(tgt.DATA_TYPE) = UPPER(src.DATA_TYPE) '
+        || 'WHERE UPPER(tgt.TABLE_SCHEMA) = UPPER(''' || var_source_schema || ''') '
+        || '  AND UPPER(tgt.TABLE_NAME)   = UPPER(''' || var_source_table  || ''') '
+        || '  AND UPPER(src.TABLE_SCHEMA) = UPPER(''' || var_target_schema || ''') '
+        || '  AND UPPER(src.TABLE_NAME)   = UPPER(''' || var_target_table  || ''')';
+
+    EXECUTE IMMEDIATE :var_col_list_sql;
+
+    -- =========================================================
+    -- STEP 4: READ COLUMN LISTS INTO VARIABLES
+    -- We SELECT INTO from the temp table, filtering by
+    -- session_name to handle concurrent calls.
+    -- =========================================================
+    SELECT column_list INTO :var_col_list
+    FROM TMP_UPSERT_COLUMN_LIST
+    WHERE session_name = :var_session_name;
+
+    SELECT prefix_column_list INTO :var_prefix_col_list
+    FROM TMP_UPSERT_COLUMN_LIST
+    WHERE session_name = :var_session_name;
+
+    -- =========================================================
+    -- STEP 5: BUILD DML INDICATOR WHERE CLAUSE
+    --
+    -- If SOURCE_DML_INDICATOR = 'X':
+    --   → WHERE 1=1 (load ALL rows regardless of DML flag)
+    --
+    -- Otherwise:
+    --   → WHERE src.<dml_col> IN ('I', 'U')
+    --     Only load rows flagged as Insert or Update
+    --     (rows flagged as 'D' for delete are excluded from INSERT)
+    -- =========================================================
+    IF (UPPER(var_source_dml_indicator) = 'X') THEN
+        var_finish_insert := '1=1';
+    ELSE
+        var_finish_insert := 'src.' || var_source_dml_indicator || ' IN (''I'', ''U'')';
+    END IF;
+
+    -- =========================================================
+    -- STEP 6: BUILD DELETE STATEMENT
+    --
+    -- Delete all rows from the TARGET table whose join_key
+    -- value exists anywhere in the SOURCE table. This removes
+    -- stale versions before we insert the latest version.
+    --
+    -- Pattern:
+    --   DELETE FROM <target_db>.<target_schema>.<target_table>
+    --   WHERE <join_key> IN (
+    --       SELECT <join_key>
+    --       FROM <source_db>.<source_schema>.<source_table>
+    --   )
+    -- =========================================================
+    var_delete_sql :=
+        'DELETE FROM ' || var_source_database || '.' || var_target_schema || '.' || var_target_table
+        || ' WHERE ' || var_join_key || ' IN ('
+        || '    SELECT ' || var_join_key
+        || '    FROM ' || var_source_database || '.' || var_source_schema || '.' || var_source_table
+        || ')';
+
+    -- =========================================================
+    -- STEP 7: BUILD INSERT STATEMENT
+    --
+    -- Insert into the TARGET table from the SOURCE table,
+    -- but ONLY the row with the MAX version number per join_key.
+    --
+    -- This handles CDC scenarios where multiple versions of
+    -- the same record may exist in the source. We only want
+    -- the latest version.
+    --
+    -- The subquery (aliased as mx) finds the MAX version per
+    -- join_key, then we join back to the source to get the
+    -- full row for that max version.
+    --
+    -- The WHERE clause applies the DML indicator filter:
+    --   - If 'X' was passed: WHERE 1=1 (all rows)
+    --   - Otherwise: WHERE src.<dml_col> IN ('I', 'U')
+    --
+    -- Pattern:
+    --   INSERT INTO <target> (<col_list>)
+    --   SELECT <prefix_col_list>
+    --   FROM <source> src
+    --   JOIN (
+    --       SELECT <join_key>, MAX(<version_col>) AS max_version
+    --       FROM <source>
+    --       GROUP BY <join_key>
+    --   ) mx ON src.<join_key> = mx.<join_key>
+    --        AND src.<version_col> = mx.max_version
+    --   WHERE <dml_filter>
+    -- =========================================================
+    var_insert_sql :=
+        'INSERT INTO ' || var_source_database || '.' || var_target_schema || '.' || var_target_table
+        || ' (' || var_col_list || ') '
+        || 'SELECT ' || var_prefix_col_list || ' '
+        || 'FROM ' || var_source_database || '.' || var_source_schema || '.' || var_source_table || ' src '
+        || 'JOIN ('
+        || '    SELECT ' || var_join_key || ', MAX(' || var_source_version_col || ') AS max_version_col'
+        || '    FROM ' || var_source_database || '.' || var_source_schema || '.' || var_source_table
+        || '    GROUP BY ' || var_join_key
+        || ') mx ON src.' || var_join_key || ' = mx.' || var_join_key
+        || '      AND src.' || var_source_version_col || ' = mx.max_version_col '
+        || 'WHERE ' || var_finish_insert;
+
+    -- =========================================================
+    -- STEP 8: EXECUTE DELETE + INSERT WITHIN A TRANSACTION
+    --
+    -- We wrap both statements in a transaction so that if
+    -- the INSERT fails, the DELETE is rolled back and the
+    -- target table remains unchanged (atomicity).
+    -- =========================================================
+    BEGIN TRANSACTION;
+        EXECUTE IMMEDIATE :var_delete_sql;
+        EXECUTE IMMEDIATE :var_insert_sql;
+    COMMIT;
+
+    -- =========================================================
+    -- STEP 9: RETURN SUCCESS
+    -- =========================================================
+    RETURN 'SUCCESS';
+
+-- =========================================================
+-- ERROR HANDLING
+-- If any step fails, roll back the transaction and return
+-- a descriptive error message with SQLERRM and SQLCODE.
+-- =========================================================
+EXCEPTION
+    WHEN OTHER THEN
+        ROLLBACK;
+        RETURN 'ERROR: ' || SQLERRM || ' | SQLCODE: ' || SQLCODE::STRING;
+END;

@@ -1,0 +1,231 @@
+CREATE OR REPLACE PROCEDURE UPSERTER_SP(
+    SOURCE_DATABASE    STRING,    -- Snowflake database (was GCP project)
+    SOURCE_SCHEMA      STRING,    -- Snowflake schema (was BQ dataset)
+    MAIN_TABLE         STRING,    -- Main/left table in the JOIN
+    TARGET_SCHEMA      STRING,    -- Target schema to write output
+    TARGET_TABLE       STRING,    -- Target table name
+    JOIN_KEY           STRING,    -- Join key column on the main/left table
+    JOIN_TYPE          STRING,    -- JOIN type: 'LEFT', 'INNER', 'LEFT OUTER' etc
+    RIGHT_TABLE_ARRAY  ARRAY      -- Array of OBJECTs with right_dataset, right_table_name, right_key_field
+)
+RETURNS STRING
+LANGUAGE SQL
+EXECUTE AS CALLER
+AS
+DECLARE
+    -- =========================================================
+    -- VARIABLE DECLARATIONS
+    -- =========================================================
+    var_cur_counter       INTEGER;          -- Loop counter for iterating right tables
+    var_range             INTEGER;          -- Total number of right tables to join
+    var_join_string       STRING;           -- Accumulated JOIN clause string
+    var_column_list_string STRING;          -- Accumulated SELECT column list string
+    var_current_dataset   STRING;           -- Current right table's schema/dataset
+    var_current_table     STRING;           -- Current right table's name
+    var_alias             STRING;           -- Current right table's alias (tbl1, tbl2, etc.)
+    var_query_text        STRING;           -- Final assembled dynamic SQL to execute
+    var_current_right_key STRING;           -- Current right table's join key field
+    var_dml_prefix        STRING;           -- DML prefix: CREATE TABLE AS or INSERT INTO
+    var_session_name      STRING;           -- Session identifier for temp table filtering
+    var_target_table_check INTEGER;         -- Count of matching target tables (0 or 1+)
+    var_main_col_list     STRING;           -- Column list built for the main table
+    var_right_col_list    STRING;           -- Column list built for each right table
+    var_dynamic_sql       STRING;           -- Reusable variable for dynamic SQL statements
+
+    -- =========================================================
+    -- Local copies of parameters for safe use in dynamic SQL
+    -- =========================================================
+    v_source_database     STRING;
+    v_source_schema       STRING;
+    v_main_table          STRING;
+    v_target_schema       STRING;
+    v_target_table        STRING;
+    v_join_key            STRING;
+    v_join_type           STRING;
+
+BEGIN
+    -- =========================================================
+    -- SECTION 0: Copy parameters to local variables
+    -- This avoids issues when embedding parameter values
+    -- inside dynamically constructed SQL strings.
+    -- =========================================================
+    v_source_database := SOURCE_DATABASE;
+    v_source_schema   := SOURCE_SCHEMA;
+    v_main_table      := MAIN_TABLE;
+    v_target_schema   := TARGET_SCHEMA;
+    v_target_table    := TARGET_TABLE;
+    v_join_key        := JOIN_KEY;
+    v_join_type       := JOIN_TYPE;
+
+    -- =========================================================
+    -- SECTION 1: Build session name for temp table filtering
+    -- Concatenation of schema + table identifiers to create
+    -- a unique session key (mirrors BigQuery SP logic).
+    -- =========================================================
+    var_session_name := v_source_schema || v_main_table || v_target_schema || v_target_table;
+
+    -- =========================================================
+    -- SECTION 2: Flatten the RIGHT_TABLE_ARRAY into a temp table
+    -- BigQuery used UNNEST(); Snowflake uses TABLE(FLATTEN()).
+    -- Each element is an OBJECT with keys:
+    --   right_dataset, right_table_name, right_key_field
+    -- We assign a ROW_ID (sequence number) to each element.
+    -- =========================================================
+    CREATE OR REPLACE TEMPORARY TABLE tmp_right_table_key_list AS
+    SELECT
+        ROW_NUMBER() OVER (ORDER BY f.INDEX) AS row_id,
+        f.VALUE:right_dataset::STRING        AS right_dataset,
+        f.VALUE:right_table_name::STRING     AS right_table_name,
+        f.VALUE:right_key_field::STRING      AS right_key_field
+    FROM TABLE(FLATTEN(INPUT => :RIGHT_TABLE_ARRAY)) f;
+
+    -- =========================================================
+    -- SECTION 3: Initialize loop variables
+    -- =========================================================
+    var_cur_counter      := 1;
+    var_join_string      := '';
+    var_column_list_string := '';
+
+    -- Get the total number of right tables to join
+    SELECT COUNT(*) INTO :var_range FROM tmp_right_table_key_list;
+
+    -- =========================================================
+    -- SECTION 4: Build column list for the MAIN (left) table
+    -- Query INFORMATION_SCHEMA.COLUMNS for the main table.
+    -- Each column is aliased as: a.COLUMN_NAME AS COLUMN_NAME__TABLE_NAME
+    -- This prevents duplicate column names when joining multiple tables.
+    -- We use LISTAGG() (Snowflake equivalent of BQ array_agg + format).
+    -- =========================================================
+    var_dynamic_sql :=
+        'CREATE OR REPLACE TEMPORARY TABLE tmp_main_col_list AS '
+        || 'SELECT LISTAGG(''a.'' || COLUMN_NAME || '' AS '' || COLUMN_NAME || ''__'' || TABLE_NAME, '', '') '
+        || '  WITHIN GROUP (ORDER BY ORDINAL_POSITION) AS col_list '
+        || 'FROM ' || v_source_database || '.INFORMATION_SCHEMA.COLUMNS '
+        || 'WHERE TABLE_SCHEMA = UPPER(''' || v_source_schema || ''') '
+        || '  AND TABLE_NAME   = UPPER(''' || v_main_table || ''')';
+
+    EXECUTE IMMEDIATE :var_dynamic_sql;
+
+    -- Retrieve the main table column list into a variable
+    SELECT col_list INTO :var_column_list_string FROM tmp_main_col_list;
+
+    -- =========================================================
+    -- SECTION 5: Loop through each right table
+    -- For each right table:
+    --   5a. Retrieve dataset, table name, and join key from temp table
+    --   5b. Build column list from INFORMATION_SCHEMA.COLUMNS
+    --       Each column aliased as: tblN.COLUMN_NAME AS COLUMN_NAME__TABLE_NAME_N
+    --       (where N is the sequence number to ensure uniqueness)
+    --   5c. Append JOIN clause to var_join_string
+    --       e.g., LEFT JOIN database.schema.table AS tbl1 ON a.key = tbl1.right_key
+    -- =========================================================
+    WHILE (var_cur_counter <= var_range) DO
+
+        -- 5a. Get current right table configuration
+        SELECT right_dataset, right_table_name, right_key_field
+        INTO :var_current_dataset, :var_current_table, :var_current_right_key
+        FROM tmp_right_table_key_list
+        WHERE row_id = :var_cur_counter;
+
+        -- Build the alias for this right table (tbl1, tbl2, tbl3, etc.)
+        var_alias := 'tbl' || var_cur_counter::STRING;
+
+        -- 5b. Build column list for this right table
+        -- Columns are aliased as: alias.COLUMN_NAME AS COLUMN_NAME__TABLE_NAME_sequencenumber
+        -- This ensures no column name collisions even if two right tables share column names.
+        var_dynamic_sql :=
+            'CREATE OR REPLACE TEMPORARY TABLE tmp_right_col_list AS '
+            || 'SELECT LISTAGG(''' || var_alias || '.'' || COLUMN_NAME || '' AS '' || COLUMN_NAME || ''__'' || TABLE_NAME || ''_' || var_cur_counter::STRING || ''', '', '') '
+            || '  WITHIN GROUP (ORDER BY ORDINAL_POSITION) AS col_list '
+            || 'FROM ' || v_source_database || '.INFORMATION_SCHEMA.COLUMNS '
+            || 'WHERE TABLE_SCHEMA = UPPER(''' || var_current_dataset || ''') '
+            || '  AND TABLE_NAME   = UPPER(''' || var_current_table || ''')';
+
+        EXECUTE IMMEDIATE :var_dynamic_sql;
+
+        -- Retrieve the right table column list
+        SELECT col_list INTO :var_right_col_list FROM tmp_right_col_list;
+
+        -- Append right table columns to the overall column list
+        var_column_list_string := var_column_list_string || ', ' || var_right_col_list;
+
+        -- 5c. Append JOIN clause for this right table
+        -- Format: <JOIN_TYPE> JOIN database.schema.table AS tblN ON a.join_key = tblN.right_key
+        var_join_string := var_join_string
+            || ' ' || v_join_type || ' JOIN '
+            || v_source_database || '.' || var_current_dataset || '.' || var_current_table
+            || ' AS ' || var_alias
+            || ' ON a.' || v_join_key || ' = ' || var_alias || '.' || var_current_right_key;
+
+        -- Increment loop counter
+        var_cur_counter := var_cur_counter + 1;
+
+    END WHILE;
+
+    -- =========================================================
+    -- SECTION 6: Check if the target table already exists
+    -- BigQuery used __TABLES__; Snowflake uses INFORMATION_SCHEMA.TABLES.
+    -- We count matching rows: 0 means table does not exist.
+    -- =========================================================
+    var_dynamic_sql :=
+        'CREATE OR REPLACE TEMPORARY TABLE tmp_table_checker AS '
+        || 'SELECT COUNT(*) AS table_count '
+        || 'FROM ' || v_source_database || '.INFORMATION_SCHEMA.TABLES '
+        || 'WHERE TABLE_SCHEMA = UPPER(''' || v_target_schema || ''') '
+        || '  AND TABLE_NAME   = UPPER(''' || v_target_table || ''')';
+
+    EXECUTE IMMEDIATE :var_dynamic_sql;
+
+    -- Retrieve the count into a variable
+    SELECT table_count INTO :var_target_table_check FROM tmp_table_checker;
+
+    -- =========================================================
+    -- SECTION 7: Determine DML prefix based on table existence
+    -- If table exists   → INSERT INTO database.schema.table
+    -- If not exists     → CREATE OR REPLACE TABLE database.schema.table AS
+    -- =========================================================
+    IF (var_target_table_check > 0) THEN
+        var_dml_prefix := 'INSERT INTO ' || v_source_database || '.' || v_target_schema || '.' || v_target_table || ' ';
+    ELSE
+        var_dml_prefix := 'CREATE OR REPLACE TABLE ' || v_source_database || '.' || v_target_schema || '.' || v_target_table || ' AS ';
+    END IF;
+
+    -- =========================================================
+    -- SECTION 8: Assemble and execute the final dynamic SQL
+    -- Combines:
+    --   DML prefix (CREATE TABLE AS or INSERT INTO)
+    --   SELECT column_list
+    --   FROM database.schema.main_table AS a
+    --   JOIN clauses for all right tables
+    -- =========================================================
+    var_query_text :=
+        var_dml_prefix
+        || 'SELECT ' || var_column_list_string
+        || ' FROM ' || v_source_database || '.' || v_source_schema || '.' || v_main_table || ' AS a'
+        || var_join_string;
+
+    EXECUTE IMMEDIATE :var_query_text;
+
+    -- =========================================================
+    -- SECTION 9: Cleanup temporary tables
+    -- =========================================================
+    DROP TABLE IF EXISTS tmp_right_table_key_list;
+    DROP TABLE IF EXISTS tmp_main_col_list;
+    DROP TABLE IF EXISTS tmp_right_col_list;
+    DROP TABLE IF EXISTS tmp_table_checker;
+
+    -- =========================================================
+    -- SECTION 10: Return success
+    -- =========================================================
+    RETURN 'SUCCESS';
+
+-- =========================================================
+-- EXCEPTION HANDLING
+-- Catches any error, rolls back, and returns error details.
+-- =========================================================
+EXCEPTION
+    WHEN OTHER THEN
+        ROLLBACK;
+        RETURN 'ERROR: ' || SQLERRM || ' | SQLCODE: ' || SQLCODE::STRING;
+
+END;
