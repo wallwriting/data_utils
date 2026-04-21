@@ -146,6 +146,7 @@ INTERNALizer_incremental
 
 INTERNALizer_incremental_filename
   - Used for incremental loading when there is no viable operation flag and source timestamp in the data, it uses the timestamp for when the file was created in the bucket to determine the incremental loadments here
+  - This has to have a connection established first
     Arguments:
         argFormat STRING, --the file format of the files being uploaded (eg csv, josn, etc)
         argSourceUriBase STRING, --the uri of the  directory for the files, with a slash and wildcard
