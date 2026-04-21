@@ -144,6 +144,17 @@ INTERNALizer_incremental
       argDatePart STRING, --the part of the date you want to increment by. This can only be DAY, HOUR, or MINUTE
       argGoBackInterval INT64 --how far back you want the datapart to go back. For example if date part is DAY, and this value is 3, that means you want it to go back three days from today.
 
+INTERNALizer_incremental_filename
+  - Used for incremental loading when there is no viable operation flag and source timestamp in the data, it uses the timestamp for when the file was created in the bucket to determine the incremental loadments here
+    Arguments:
+        argFormat STRING, --the file format of the files being uploaded (eg csv, josn, etc)
+        argSourceUriBase STRING, --the uri of the  directory for the files, with a slash and wildcard
+        argTargetDataset STRING, --the dataset that this will be run in
+        argConnection STRING, --the connection created, this must be created beforehand
+        argTargetInternalTable STRING,  -- the name of the internal table to use
+        argPrimaryKeyArray ARRAY<STRING>, -- the primary key field(s) in array format ['one', 'two']
+        argSkipRowNumber INT64, -- the number of rows to skip for headers
+        argDelimiter STRING -- the delimiter use '' if this isn't applicable
 
 unJSONer
   - flattens any json columns in a table, placing each into their own tables with schema
