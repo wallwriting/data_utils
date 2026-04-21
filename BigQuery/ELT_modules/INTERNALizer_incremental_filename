@@ -1,0 +1,233 @@
+/*uploads data from gcs, isolating only those files created since the last run*/
+CREATE OR REPLACE PROCEDURE dpa.sp_internalizer_incremental_filename (
+    argFormat STRING, --the file format of the files being uploaded (eg csv, josn, etc)
+    argSourceUriBase STRING, --the uri of the  directory for the files, with a slash and wildcard
+    argTargetDataset STRING, --the dataset that this will be run in
+    argConnection STRING, --the connection created, this must be created beforehand
+    argTargetInternalTable STRING,  -- the name of the internal table to use
+    argPrimaryKeyArray ARRAY<STRING>, -- the primary key field(s) in array format ['one', 'two']
+    argSkipRowNumber INT64, -- the number of rows to skip for headers
+    argDelimiter STRING -- the delimiter use '' if this isn't applicable
+)
+BEGIN
+
+  /***** A CONNECTION MUST BE CREATED TO USE THIS STORED PROCEDURE*****/
+  /*this proc needs a table called meta_external_table_run and will create one if it doesn't exist*/
+  /*this proc assumes the file has no operation flag or viable create timestamp*/
+
+
+  -- truncate table source_sample.src_membership;
+  -- update source_sample.meta_external_table_run SET last_creation_timestamp = '2026-04-19 00:00:00' WHERE 1=1;
+  -- update source_sample.meta_external_table_run SET last_creation_timestamp = '2000-01-01 00:00:00' WHERE 1=1;
+
+  -- select * FROM source_sample.src_membership
+  -- select * FROM source_sample.meta_external_table_run
+
+  DECLARE varUriList STRING;
+  DECLARE varObjectTable STRING;
+  DECLARE varCurrentRunTimestamp TIMESTAMP;
+  DECLARE varRange INT64;
+  DECLARE varCounter INT64;
+  DECLARE varJoinSyntax STRING;
+  DECLARE varKeyColumnList STRING;
+  DECLARE varCurrentColumn STRING;
+  DECLARE varStringLength INT64;
+  DECLARE varDelimiterSyntax STRING;
+  DECLARE varTargetExternalTable STRING; 
+
+  /*for testing purposes, comment this out*/
+  -- DECLARE argFormat STRING;
+  -- DECLARE argSourceUriBase STRING; 
+  -- DECLARE argTargetDataset STRING;
+  -- DECLARE argConnection STRING;
+  -- DECLARE argTargetInternalTable STRING; 
+  -- DECLARE argPrimaryKeyArray ARRAY<STRING>;
+  -- DECLARE argSkipRowNumber INT64;
+  -- DECLARE argDelimiter STRING;
+
+  -- SET argFormat = 'CSV';
+  -- SET argSourceUriBase = 'gs://itav-datalake-dev/sample/membership'; 
+  -- SET argTargetDataset = 'source_sample';
+  -- SET argConnection = 'us.itav_bucket_connection';
+  -- SET argTargetInternalTable = 'src_membership'; 
+  -- SET argPrimaryKeyArray = ['member_id'];
+  -- SET argSkipRowNumber = 1;
+  -- SET argDelimiter = ';';
+  /*end testing section*/
+
+
+  /*creates the external table name*/
+    SET varTargetExternalTable = CONCAT("""ext_""" || argTargetInternalTable); 
+
+  /***THIS SECTION ADDS A WILDCARD IF IT WASN'T IN THE URI ARGUMENT***/
+    /**checks if it has a wildcard**/
+    IF RIGHT(argSourceUriBase, 2) = '*/' THEN SET argSourceUriBase = argSourceUriBase;
+        /**checks if it ends with a slash**/ 
+        ELSEIF RIGHT(argSourceUriBase, 1) = '/' THEN SET argSourceUriBase = CONCAT(argSourceUriBase || """*""");
+        /**for everything else**/
+        ELSE SET argSourceUriBase = CONCAT(argSourceUriBase || """/*""");
+    END IF;
+  /******************END SECTION******************************/
+
+
+
+  /***THIS SECTION CREATES THE OBJECT TABLE WHICH HAS METADATA ABOUT THE FILES**/
+    /*sets the object table name*/
+    SET varObjectTable = CONCAT("""metaobject_""" || varTargetExternalTable);
+
+    /*creates the object table*/
+    EXECUTE IMMEDIATE
+    """CREATE OR REPLACE EXTERNAL TABLE """ || argTargetDataset || """.""" || varObjectTable || """ """
+    || """ WITH CONNECTION """ || argConnection || """ """
+    || """ OPTIONS ("""
+    || """ object_metadata = 'SIMPLE', """
+    || """ uris = ['""" || argSourceUriBase || """']"""
+    || """);"""
+    ;
+  /** END SECTION **/
+
+
+  /***THIS PROCESS REQUIRES THIS METADATA TABLE AND CREATES ONE IF IT DOESN'T EXIST***/
+    EXECUTE IMMEDIATE
+    """CREATE TABLE IF NOT EXISTS """ || argTargetDataset || """.""" || """meta_external_table_run AS """ 
+    || """ (SELECT TIMESTAMP('2000-01-01 00:00:00') AS last_creation_timestamp);"""
+    ;
+  /***END SECTION***/
+
+
+  /***THIS SECTION CREATES A TEMP TABLE WITH THE LIST OF URIS THAT ARE MORE RECENT THAN THE LAST RUN***/
+    EXECUTE IMMEDIATE
+    """CREATE OR REPLACE TEMP TABLE tmp_uri_list AS """
+    || """SELECT """
+    || """    /*grabs all the uris that are more recent than the last run, then sets them as an array, then that is cast as string*/ """
+    || '''    CONCAT("""['""" || array_to_string(array_agg(uri), """', '""") || """']""") as uri_string '''
+    || """ from """ || argTargetDataset || """.""" || varObjectTable || """ a """
+    || """ WHERE a.updated > (SELECT last_creation_timestamp FROM """ || argTargetDataset || """.meta_external_table_run);"""
+    ;
+    /*sets the variable with the list of uris*/
+    SET varUriList = (SELECT uri_string FROM tmp_uri_list);
+  /****END SECTION****/
+
+  -- SELECT varUriList;
+
+
+
+  /****THIS SECTION CREATES A THE EXTERNAL TABLE WITH THE FILES IN THE URI LIST****/
+    /*only runs it if there is a valid list of uris*/
+    IF varUriList IS NOT NULL THEN 
+
+        /*sets the variable for the current run timestamp to be used later to update the metadata table*/
+        SET varCurrentRunTimestamp = current_timestamp();
+
+        /*creates the delimiter syntax if it's applicable*/
+        SET varDelimiterSyntax = CONCAT(""" field_delimiter = '""" || argDelimiter || """', """);
+
+
+        /*creates the external table*/
+        EXECUTE IMMEDIATE
+        """ CREATE OR REPLACE EXTERNAL TABLE """ || argTargetDataset || """.""" || varTargetExternalTable
+        || """  OPTIONS ("""
+        || """    format = """ || argFormat || ""","""
+        || """    skip_leading_rows = """ || argSkipRowNumber || """, """
+        || varDelimiterSyntax
+        || """    uris = """ || varUriList
+        || """    ); """
+        ;
+
+        /*checks if the target table already exists*/
+        EXECUTE IMMEDIATE
+        """CREATE OR REPLACE TEMP TABLE tmp_tablechecker AS """
+        || """SELECT COUNT(1) AS cnt FROM """ || argTargetDataset || """.__TABLES_SUMMARY__ WHERE table_id = '""" || argTargetInternalTable || """'; """
+        ;
+
+        /*creates a new table if it doesn't exist, inserts if it does*/
+        IF (SELECT cnt FROM tmp_tablechecker) = 0 THEN 
+            /*query to create the table*/
+            EXECUTE IMMEDIATE
+            """ CREATE OR REPLACE TABLE """ 
+            || argTargetDataset || """.""" || argTargetInternalTable || """ AS """
+            || """ SELECT *, '""" || varCurrentRunTimestamp || """' AS source_create_timestamp, 'INSERT' AS source_change_type """ 
+            || """ FROM """ 
+            || argTargetDataset || """.""" || varTargetExternalTable || """;"""
+            ;
+        /*otherwise does an upsert--the merge function syntax is too limited to use*/
+        ELSE
+
+
+            /**************************************************************************/
+            /******************THIS SECTION WILL CREATE THE JOIN SYNTAX FOR************/ 
+            /******************THE MERGE STATEMENT THAT WILL BE USED LATER*************/
+            /**************************************************************************/
+
+            /*creates a temp table that unnests the array of primary key columns
+            and assigns a row number to each record*/
+            CREATE OR REPLACE TEMP TABLE tmp_column_list AS
+            SELECT row_number() OVER () as row_id, column_name
+            FROM UNNEST(argPrimaryKeyArray) column_name
+            ;
+
+            /*keeps appending the string with columns that will be joined together*/
+            SET varRange = (select count(1) FROM tmp_column_list);
+            SET varCounter = 1;
+            SET varJoinSyntax = '';
+            SET varKeyColumnList = '';
+
+            WHILE varCounter <= varRange DO
+              SET varCurrentColumn = (SELECT column_name FROM tmp_column_list WHERE row_id = varCounter);
+              SET varJoinSyntax = varJoinSyntax || """ """ || varCurrentColumn || """ = mx.""" || varCurrentColumn || """ AND""";
+              SET varKeyColumnList = varKeyColumnList || """ """ || varCurrentColumn || """, """;
+              SET varCounter = varCounter + 1;
+            END WHILE;
+
+            /*trims off the last AND*/
+            SET varStringLength = (SELECT LENGTH(varJoinSyntax));
+            SET varJoinSyntax = (SELECT LEFT(varJoinSyntax, varStringLength - 3));
+
+            /*trims off the last comma*/
+            SET varStringLength = (SELECT LENGTH(varKeyColumnList));
+            SET varKeyColumnList = (SELECT LEFT(varKeyColumnList, varStringLength - 2));
+
+            /**************************************************************************/
+            /*************************END JOIN SYNTAX SECTION**************************/
+            /**************************************************************************/
+
+            BEGIN TRANSACTION;
+            /*first deletes*/
+            EXECUTE IMMEDIATE
+            """DELETE FROM """ || argTargetDataset || """.""" || argTargetInternalTable || """ mx """
+            || """WHERE EXISTS (SELECT 1 FROM """ 
+            || argTargetDataset || """.""" || varTargetExternalTable || """ s WHERE """ || varJoinSyntax || """); """
+            ;
+
+            /*then inserts*/
+            EXECUTE IMMEDIATE
+            """ INSERT INTO """ || argTargetDataset || """.""" || argTargetInternalTable
+            || """ SELECT *, '""" || varCurrentRunTimestamp || """' AS source_create_timestamp, 'INSERT' AS source_change_type """ 
+            || """ FROM """ 
+            || argTargetDataset || """.""" || varTargetExternalTable || """;"""
+            ;
+            COMMIT TRANSACTION;
+        END IF;
+
+        /*sets the timestamp in the metadata table to the timestamp of this run*/  
+        update source_sample.meta_external_table_run 
+            SET last_creation_timestamp = varCurrentRunTimestamp WHERE 1=1;
+
+    END IF;
+  /******************END SECTION************************/
+
+
+
+  /******DROPS THE OBJECT AND EXTERNAL TABLES IF THEY EXISTS******/
+    EXECUTE IMMEDIATE
+    """ DROP TABLE IF EXISTS """ || argTargetDataset || """.""" || varObjectTable || """;"""
+    ;
+
+
+    EXECUTE IMMEDIATE
+    """ DROP TABLE IF EXISTS """ || argTargetDataset || """.""" || varTargetExternalTable || """;"""
+    ;
+  /************END SECTION**********************/
+
+END
+
