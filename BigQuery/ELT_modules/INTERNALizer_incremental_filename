@@ -23,6 +23,7 @@ BEGIN
   -- select * FROM source_sample.src_membership
   -- select * FROM source_sample.meta_external_table_run
 
+
   DECLARE varUriList STRING;
   DECLARE varObjectTable STRING;
   DECLARE varCurrentRunTimestamp TIMESTAMP;
@@ -56,7 +57,7 @@ BEGIN
   /*end testing section*/
 
 
-  /*creates the external table name*/
+  /*sets the external table name*/
     SET varTargetExternalTable = CONCAT("""ext_""" || argTargetInternalTable); 
 
   /***THIS SECTION ADDS A WILDCARD IF IT WASN'T IN THE URI ARGUMENT***/
@@ -90,7 +91,7 @@ BEGIN
   /***THIS PROCESS REQUIRES THIS METADATA TABLE AND CREATES ONE IF IT DOESN'T EXIST***/
     EXECUTE IMMEDIATE
     """CREATE TABLE IF NOT EXISTS """ || argTargetDataset || """.""" || """meta_external_table_run AS """ 
-    || """ (SELECT TIMESTAMP('2000-01-01 00:00:00') AS last_creation_timestamp);"""
+    || """ (SELECT '""" ||  argTargetInternalTable || """' AS table_name, """ || """ TIMESTAMP('2000-01-01 00:00:00') AS last_creation_timestamp);"""
     ;
   /***END SECTION***/
 
@@ -102,7 +103,8 @@ BEGIN
     || """    /*grabs all the uris that are more recent than the last run, then sets them as an array, then that is cast as string*/ """
     || '''    CONCAT("""['""" || array_to_string(array_agg(uri), """', '""") || """']""") as uri_string '''
     || """ from """ || argTargetDataset || """.""" || varObjectTable || """ a """
-    || """ WHERE a.updated > (SELECT last_creation_timestamp FROM """ || argTargetDataset || """.meta_external_table_run);"""
+    || """ WHERE a.updated > (SELECT MIN(last_creation_timestamp) FROM """ || argTargetDataset || """.meta_external_table_run metr WHERE metr.table_name = '""" || argTargetInternalTable || """' """
+    || """ GROUP BY table_name);"""
     ;
     /*sets the variable with the list of uris*/
     SET varUriList = (SELECT uri_string FROM tmp_uri_list);
@@ -210,19 +212,19 @@ BEGIN
         END IF;
 
         /*sets the timestamp in the metadata table to the timestamp of this run*/  
-        update source_sample.meta_external_table_run 
-            SET last_creation_timestamp = varCurrentRunTimestamp WHERE 1=1;
-
+        EXECUTE IMMEDIATE
+        """ UPDATE source_sample.meta_external_table_run """
+        || """    SET last_creation_timestamp = '""" || varCurrentRunTimestamp || """' """
+        || """    WHERE table_name = '""" || argTargetInternalTable || """'; """
+        ;
     END IF;
   /******************END SECTION************************/
-
 
 
   /******DROPS THE OBJECT AND EXTERNAL TABLES IF THEY EXISTS******/
     EXECUTE IMMEDIATE
     """ DROP TABLE IF EXISTS """ || argTargetDataset || """.""" || varObjectTable || """;"""
     ;
-
 
     EXECUTE IMMEDIATE
     """ DROP TABLE IF EXISTS """ || argTargetDataset || """.""" || varTargetExternalTable || """;"""
