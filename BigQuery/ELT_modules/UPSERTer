@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE dpa.sp_upserter(source_dataset STRING, source_table STRING, source_version STRING, source_dml_indicator STRING, join_key STRING, target_dataset STRING, target_table STRING, insert_var STRING, update_var STRING)
+CREATE OR REPLACE PROCEDURE dpa.sp_upserter(argSourceDataset STRING, argSourceTable STRING, argSourceVersion STRING, argSourceDml STRING, argJoinKey STRING, argTargetDataset STRING, argTargetTable STRING, argInsert STRING, argUpdate STRING)
 BEGIN
 
     DECLARE col_txt_var STRING;
@@ -7,9 +7,8 @@ BEGIN
     DECLARE finishInsertVar STRING;
     DECLARE varSessionName STRING;
 
-    /*sets the session name which will be used later to select the proper record. This is needed because BQ doesn't actually replace a temp table if it's
-    created twice in the same multi statement transaction block, which can cause errors if multiple upsert commands are used in one block*/
-    SET varSessionName = source_dataset || source_table || target_dataset || target_table;
+    /*sets the session name which will be used later to select the proper record. This is needed because BQ doesn't actually replace a temp table if it's created twice in the same multi statement transaction block, which can cause errors if multiple upsert commands are used in one block*/
+    SET varSessionName = argSourceDataset || argSourceTable || argTargetDataset || argTargetTable;
     
     /*creates two sets of column lists, one with a table prefix and one without, to be used later to 
     dynamically generate the column list in the INSERT statement*/
@@ -28,7 +27,7 @@ BEGIN
     || '                ( '
     || '                    REPLACE '
     || '                        ( '
-    || """                            (format('%T', array_agg(tgt.column_name))) """
+    || """                            (format('%T', array_agg('`' || tgt.column_name || '`'))) """
     || """                            , '[', ''  """
     || '                        ) '
     || """                    , ']', '' """
@@ -43,7 +42,7 @@ BEGIN
     || '                ( '
     || '                    REPLACE '
     || '                        ( '
-    || """                            (format('%T', array_agg('src.' || tgt.column_name))) """
+    || """                            (format('%T', array_agg('src.`' || tgt.column_name || '`'))) """
     || """                            , '[', ''  """
     || '                        ) '
     || """                    , ']', '' """
@@ -58,9 +57,9 @@ BEGIN
     || '                            CAST(column_name AS STRING) AS column_name, '
     || '                            data_type '
     || '                        FROM  '
-    ||                            source_dataset || '.INFORMATION_SCHEMA.COLUMNS '
+    ||                            argSourceDataset || '.INFORMATION_SCHEMA.COLUMNS '
     || '                        WHERE  '
-    || """                            table_name = '""" || source_table || """' """
+    || """                            table_name = '""" || argSourceTable || """' """
     || '                    ) tgt '
     || '                JOIN '
     || '                    /*Gets the list of source columns from the INFORMATION_SCHEMA metadata table in order to compare it to the target columns*/ '
@@ -69,9 +68,9 @@ BEGIN
     || '                            CAST(column_name AS STRING) AS column_name,  '
     || '                            data_type '
     || '                        FROM  '
-    ||                            target_dataset || '.INFORMATION_SCHEMA.COLUMNS '
+    ||                            argTargetDataset || '.INFORMATION_SCHEMA.COLUMNS '
     || '                        WHERE  '
-    || """                            table_name = '""" || target_table || """' """
+    || """                            table_name = '""" || argTargetTable || """' """
     || '                    ) src '
     || '                    ON tgt.column_name = src.column_name '
     || '                    /*this will filter out any columns where the names match but the datatypes do not*/ '
@@ -86,8 +85,8 @@ BEGIN
 
     /*for the end of the insert statement, this will create different lines based on
     whether the call passed a real dml indicator or a value of X*/
-    IF UPPER(source_dml_indicator) = 'X' THEN SET finishInsertVar = '1=1'; 
-        ELSE SET finishInsertVar = 'src.' || source_dml_indicator || """ IN('""" || insert_var || """', '""" || update_var || """')""";
+    IF UPPER(argSourceDml) = 'X' THEN SET finishInsertVar = '1=1'; 
+        ELSE SET finishInsertVar = 'src.' || argSourceDml || """ IN('""" || argInsert || """', '""" || argUpdate || """')""";
     END IF;
 
 
@@ -96,42 +95,42 @@ BEGIN
         EXECUTE IMMEDIATE
         /*deletes any existing target rows that will change in the batch*/
         'DELETE FROM ' 
-            || target_dataset || '.' || target_table || 
-        ' WHERE ' || join_key || ' IN' ||
+            || argTargetDataset || '.' || argTargetTable || 
+        ' WHERE ' || argJoinKey || ' IN' ||
             /*gets target table_key that have a version number lower than the source*/
         '    (' ||
         '        SELECT ' ||
-        '            maxtgt.' || join_key ||
+        '            maxtgt.' || argJoinKey ||
         '        FROM ' ||
-                    source_dataset || '.' || source_table || ' as maxtgt' || 
+                    argSourceDataset || '.' || argSourceTable || ' as maxtgt' || 
         '    );'
         ;
 
         EXECUTE IMMEDIATE
             /*inserts source data into target table, only inserting new rows*/
         '    INSERT INTO ' || 
-                target_dataset || '.' || target_table ||
+                argTargetDataset || '.' || argTargetTable ||
         '        (' || colArrayVar || ') '  ||
         '        SELECT '  ||
                     /*replace this with whatever you need to insert*/
                     colArrayPrefixVar || 
         '        FROM '  ||
                     /*source*/ 
-                    source_dataset || '.' || source_table || ' src' ||
+                    argSourceDataset || '.' || argSourceTable || ' src' ||
         '        JOIN ' ||
                     /*This finds the max version number for each id*/
         '            (' ||
         '                SELECT ' ||
-        '                    srcmx.' || join_key || ',' || 
-        '                    MAX(srcmx.' || source_version || ') AS max_version_col ' ||
+        '                    srcmx.' || argJoinKey || ',' || 
+        '                    MAX(srcmx.' || argSourceVersion || ') AS max_version_col ' ||
         '                FROM ' ||
-                            source_dataset || '.' || source_table || ' srcmx' || 
+                            argSourceDataset || '.' || argSourceTable || ' srcmx' || 
         '                GROUP BY ' ||
-                            join_key ||  
+                            argJoinKey ||  
         '            ) mx ' ||
-        '            ON src.' || join_key || ' = mx.' || join_key ||
+        '            ON src.' || argJoinKey || ' = mx.' || argJoinKey ||
                     /*only gets records with the max version number*/
-        '            AND src. ' || source_version || ' = mx.max_version_col ' ||
+        '            AND src. ' || argSourceVersion || ' = mx.max_version_col ' ||
         '        WHERE ' ||
                     /*only inserts inserts and updates*/
                     finishInsertVar ||  
