@@ -89,6 +89,8 @@ BEGIN
 
     EXECUTE IMMEDIATE 
     varDmlPrefix
+    /*uses a select distinct--according to google, bq should have simialr performance between a select distinct and a select with group by
+    but this should be evaluated and changes might need to be made if this proves untrue in the future*/
     || ' SELECT DISTINCT' || varSelectColumnString || ' FROM ' || argSourceDataset || '.' || argSourceTable || ';'
     ;
 
