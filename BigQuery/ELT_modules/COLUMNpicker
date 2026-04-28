@@ -21,14 +21,14 @@ BEGIN
     || ' SELECT '
     || """ '""" || varSessionName || """' AS session_name, """
     /*filters out the opening and closing brackets as well as the double quotes from the 
-    array string in order touse it as an explicity column list in the query later on*/
+    array string in order to use it as an explicity column list in the query later on*/
     || '    REPLACE '
     || '        ( '
     || '            REPLACE '
     || '                ( '
     || '                    REPLACE '
     || '                        ( '
-    || """                            (format('%T', array_agg(a.source_column_name || ' AS ' || a.target_column_name))) """
+    || """                            (format('%T', array_agg('`' || a.source_column_name || '` AS `' || a.target_column_name || '`'))) """
     || """                            , '[', '' """
     || '                        ) '
     || """                    , ']', '' """
