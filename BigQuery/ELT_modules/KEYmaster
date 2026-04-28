@@ -1,27 +1,27 @@
-CREATE OR REPLACE PROCEDURE dpa.sp_keymaster(varSourceDataset STRING, varSourceTable STRING, varTargetDataset STRING, varTargetTable STRING, varTargetKey STRING, varHashColumnArray ARRAY<STRING>)
+CREATE OR REPLACE PROCEDURE dpa.sp_keymaster(argSourceDataset STRING, argSourceTable STRING, argTargetDataset STRING, argTargetTable STRING, argTargetKey STRING, argHashColumnArray ARRAY<STRING>)
 BEGIN
     DECLARE varHashText STRING;
     DECLARE curCounter INT64;
     DECLARE varRange INT64;
-    DECLARE varTargetTableCheck STRING;
+    DECLARE argTargetTableCheck STRING;
     DECLARE varDmlPrefix STRING;
     DECLARE varSessionName STRING;
 
     /*sets the session name which will be used later to select the proper record. This is needed because BQ doesn't actually replace a temp table if it's
     created twice in the same multi statement transaction block, which can cause errors if multiple upsert commands are used in one block*/
-    SET varSessionName = varSourceDataset || varSourceTable || varTargetDataset || varTargetTable;
+    SET varSessionName = argSourceDataset || argSourceTable || argTargetDataset || argTargetTable;
 
     CREATE OR REPLACE TEMP TABLE tmp_table_list (row_key INT64, session_name STRING, col_name STRING);
 
     INSERT INTO tmp_table_list 
-    WITH HashColArray AS (SELECT varHashColumnArray)
+    WITH HashColArray AS (SELECT argHashColumnArray)
     SELECT 
         ROW_NUMBER() OVER() AS row_key, 
         varSessionName AS session_name,
-        ' IFNULL(CAST(' || col_name ||  """ AS STRING), '')""" AS col_name
+        """ IFNULL(CAST(`""" || col_name ||  """` AS STRING), '')""" AS col_name
     FROM 
         HashColArray
-        , UNNEST(varHashColumnArray) col_name
+        , UNNEST(argHashColumnArray) col_name
     ;
 
     SET varRange = (SELECT COUNT(*) FROM tmp_table_list WHERE session_name = varSessionName);
@@ -47,14 +47,14 @@ BEGIN
     || '    table_id AS variable_value, '
     || """ '""" || varSessionName || """' AS session_name """
     || 'FROM  '
-    ||    varTargetDataset || '.__TABLES__ '
+    ||    argTargetDataset || '.__TABLES__ '
     || 'WHERE '
-    || '    table_id = ' || """ '""" || varTargetTable || """'   """
+    || '    table_id = ' || """ '""" || argTargetTable || """'   """
     || '; '
     ;
 
     /*Sets the variable to the row in the temp table*/
-    SET varTargetTableCheck = (SELECT variable_value FROM tmp_table_checker_value WHERE session_name = varSessionName);
+    SET argTargetTableCheck = (SELECT variable_value FROM tmp_table_checker_value WHERE session_name = varSessionName);
 
     /*******************************************************************************************/
     /******************************END Generate Target Table Name*******************************/
@@ -69,8 +69,8 @@ BEGIN
     /*Checks intended table name against the metadata table name to see
     if the table already exists--generates either a CREATE TABLE statement
     or an INSERT INTO statement depending on whether the target already eixsts*/ 
-    IF varTargetTableCheck = varTargetTable THEN SET varDmlPrefix = 'INSERT INTO ' || varTargetDataset || '.' || varTargetTable || ' ';
-        ELSE SET varDmlPrefix = 'CREATE OR REPLACE TABLE ' || varTargetDataset || '.' || varTargetTable || ' AS ';
+    IF argTargetTableCheck = argTargetTable THEN SET varDmlPrefix = 'INSERT INTO ' || argTargetDataset || '.' || argTargetTable || ' ';
+        ELSE SET varDmlPrefix = 'CREATE OR REPLACE TABLE ' || argTargetDataset || '.' || argTargetTable || ' AS ';
     END IF;
 
     WHILE curCounter <= varRange DO
@@ -78,7 +78,7 @@ BEGIN
             THEN SET varHashText = varHashText || (SELECT col_name FROM tmp_table_list WHERE row_key = curCounter AND session_name = varSessionName ) || ',';
         ELSE 
             SET varHashText = varHashText || (SELECT col_name FROM tmp_table_list WHERE row_key = curCounter AND session_name = varSessionName ) || ')) AS ' 
-                    || varTargetKey || ', * FROM ' || varSourceDataset || '.' || varSourceTable || ';';
+                    || argTargetKey || ', * FROM ' || argSourceDataset || '.' || argSourceTable || ';';
         END IF;
         SET curCounter = curCounter + 1;
     END WHILE;
