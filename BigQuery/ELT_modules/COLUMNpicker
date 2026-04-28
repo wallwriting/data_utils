@@ -89,7 +89,7 @@ BEGIN
 
     EXECUTE IMMEDIATE 
     varDmlPrefix
-    || ' SELECT ' || varSelectColumnString || ' FROM ' || argSourceDataset || '.' || argSourceTable || ';'
+    || ' SELECT DISTINCT' || varSelectColumnString || ' FROM ' || argSourceDataset || '.' || argSourceTable || ';'
     ;
 
     /*******************************************************************************************/
