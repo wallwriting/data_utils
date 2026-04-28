@@ -1,19 +1,20 @@
-CREATE OR REPLACE PROCEDURE dpa.sp_columnpicker(varSourceDataset STRING, varSourceTable STRING, varTargetDataset STRING, varTargetTable STRING, varSelectColumnArray ARRAY<STRUCT<source_column_name STRING, target_column_name STRING>>)
+/*creates a list of columns that you want to migrate to the next section and renames them. Use the same names on both sides of the key/value pair if you want the name to be the same*/
+CREATE OR REPLACE PROCEDURE dpa.sp_columnpicker(argSourceDataset STRING, argSourceTable STRING, argTargetDataset STRING, argTargetTable STRING, argSelectColumnArray ARRAY<STRUCT<source_column_name STRING, target_column_name STRING>>)
 BEGIN
     DECLARE varSelectColumnString STRING;
-    DECLARE varTargetTableCheck STRING;
+    DECLARE argTargetTableCheck STRING;
     DECLARE varDmlPrefix STRING;
     DECLARE varSessionName STRING;
 
 
     /*sets the session name which will be used later to select the proper record. This is needed because BQ doesn't actually replace a temp table if it's created twice in the same multi statement transaction block, which can cause errors if multiple upsert commands are used in one block*/
-    SET varSessionName = varSourceDataset || varSourceTable || varTargetDataset || varTargetTable;    
+    SET varSessionName = argSourceDataset || argSourceTable || argTargetDataset || argTargetTable;    
 
 
     /*creates a temp table with the flattened array and source/target column names from the STRUCT fields*/
     CREATE OR REPLACE TEMP TABLE tmp_columnpicker_list AS
-    WITH flattened_struct AS (select varSelectColumnArray)
-    select varSessionName as session_name, a FROM flattened_struct, UNNEST(varSelectColumnArray) a
+    WITH flattened_struct AS (select argSelectColumnArray)
+    select varSessionName as session_name, a FROM flattened_struct, UNNEST(argSelectColumnArray) a
     ;
 
     EXECUTE IMMEDIATE 
@@ -28,6 +29,8 @@ BEGIN
     || '                ( '
     || '                    REPLACE '
     || '                        ( '
+                                      /*creates an array of the column names and it also
+                                      adds ticks in cases where the column name is a reserve word*/
     || """                            (format('%T', array_agg('`' || a.source_column_name || '` AS `' || a.target_column_name || '`'))) """
     || """                            , '[', '' """
     || '                        ) '
@@ -49,8 +52,8 @@ BEGIN
     /****************************START Generate Target Table Name*******************************/
     /*******************************************************************************************/    
 
-    /*this variable is for searching a metadata view to see if the target table already exists*/
-    CREATE OR REPLACE TEMP TABLE tmp_table_checker_value (session_name STRING, variable_value   STRING);
+    /*checks information schema to see if the table exists*/
+    -- CREATE OR REPLACE TEMP TABLE tmp_table_checker_value (session_name STRING, variable_value   STRING);
 
     EXECUTE IMMEDIATE 
     ' CREATE OR REPLACE TEMP TABLE tmp_table_checker_value AS '
@@ -58,13 +61,13 @@ BEGIN
     || """ '""" || varSessionName || """' AS session_name, """
     || '    table_id AS variable_value                                                                               '
     || 'FROM                                                                                        '
-    ||    varTargetDataset || '.__TABLES__                                                                  '
+    ||    argTargetDataset || '.__TABLES__                                                                  '
     || 'WHERE                                                                                       '
-    || """    table_id = '""" || varTargetTable || """'   """
+    || """    table_id = '""" || argTargetTable || """'   """
     || ';                                                                                           '
     ;
     /*Sets the variable to the row in the temp table*/
-    SET varTargetTableCheck = (SELECT variable_value FROM tmp_table_checker_value WHERE session_name = varSessionName);
+    SET argTargetTableCheck = (SELECT variable_value FROM tmp_table_checker_value WHERE session_name = varSessionName);
 
     /*******************************************************************************************/
     /******************************END Generate Target Table Name*******************************/
@@ -79,14 +82,14 @@ BEGIN
     /*Checks intended table name against the metadata table name to see
     if the table already exists--generates either a CREATE TABLE statement
     or an INSERT INTO statement depending on whether the target already eixsts*/ 
-    IF varTargetTableCheck = varTargetTable THEN SET varDmlPrefix = 'INSERT INTO ' || varTargetDataset || '.' || varTargetTable || ' ';
-        ELSE SET varDmlPrefix = 'CREATE OR REPLACE TABLE ' || varTargetDataset || '.' || varTargetTable || ' AS ';
+    IF argTargetTableCheck = argTargetTable THEN SET varDmlPrefix = 'INSERT INTO ' || argTargetDataset || '.' || argTargetTable || ' ';
+        ELSE SET varDmlPrefix = 'CREATE OR REPLACE TABLE ' || argTargetDataset || '.' || argTargetTable || ' AS ';
     END IF;
 
 
     EXECUTE IMMEDIATE 
     varDmlPrefix
-    || ' SELECT ' || varSelectColumnString || ' FROM ' || varSourceDataset || '.' || varSourceTable || ';'
+    || ' SELECT ' || varSelectColumnString || ' FROM ' || argSourceDataset || '.' || argSourceTable || ';'
     ;
 
     /*******************************************************************************************/
