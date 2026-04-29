@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE test.sp_truncator(varDataset STRING, varTableArray ARRAY<STRING>)
+CREATE OR REPLACE PROCEDURE dpa.sp_truncator(argDataset STRING, argTableArray ARRAY<STRING>)
 
 BEGIN
     DECLARE varExecuteSql STRING;
@@ -11,12 +11,12 @@ BEGIN
     /*checks information schema to make sure the tables actually exist,
     then creates a temp table that unnests the array of tables and assigns a row number to each record*/
 
-    SET varTableString = """ '""" || (SELECT ARRAY_TO_STRING(varTableArray, """', '""")) || """' """;
+    SET varTableString = """ '""" || (SELECT ARRAY_TO_STRING(argTableArray, """', '""")) || """' """;
 
     /*creates a temp table with the list of valid table names*/
     EXECUTE IMMEDIATE
     """CREATE TEMP TABLE tmp_table_list AS """ 
-    || """SELECT row_number() OVER () as row_id, table_name FROM """ || varDataset || """.INFORMATION_SCHEMA.TABLES WHERE table_name IN(""" || varTableString || """); """
+    || """SELECT row_number() OVER () as row_id, table_name FROM """ || argDataset || """.INFORMATION_SCHEMA.TABLES WHERE table_name IN(""" || varTableString || """); """
     ;
 
     /*iterates through table list and truncates each table*/
@@ -28,7 +28,7 @@ BEGIN
         WHILE varCounter <= varRange DO
             SET varCurrentTable = (SELECT table_name FROM tmp_table_list WHERE row_id = varCounter);
             SET varExecuteSql = 
-                """TRUNCATE TABLE """ || varDataset || """.""" || varCurrentTable || """; """
+                """TRUNCATE TABLE """ || argDataset || """.""" || varCurrentTable || """; """
             ;
             EXECUTE IMMEDIATE
                 varExecuteSql;
@@ -36,5 +36,3 @@ BEGIN
         END WHILE;
     COMMIT TRANSACTION;
 END
-
-
