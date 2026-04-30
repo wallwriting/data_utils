@@ -95,6 +95,20 @@ BEGIN
     ;
   /***END SECTION***/
 
+  /***THIS SECTION CHECKS IF THE RECORD FOR THIS TARGET TABLE ALREADY EXISTS IN THE METADATA TABLE AND CREATES ONE IF IT DOESN'T***/
+  EXECUTE IMMEDIATE
+  """ CREATE OR REPLACE TEMP TABLE tmp_source_record_checker AS """
+  || """ SELECT COUNT(1) AS exists_flag FROM """ || argTargetDataset || """.meta_external_table_run metr WHERE metr.table_name = '""" || argTargetInternalTable || """';"""
+  ;
+
+  IF (SELECT exists_flag FROM tmp_source_record_checker) = 0 THEN
+    EXECUTE IMMEDIATE
+    """ INSERT INTO """ || argTargetDataset || """.meta_external_table_run """
+      || """ (SELECT '""" ||  argTargetInternalTable || """' AS table_name, """ || """ TIMESTAMP('2000-01-01 00:00:00') AS last_creation_timestamp);"""
+    ;
+  END IF;
+  /****END SECTION****/
+
 
   /***THIS SECTION CREATES A TEMP TABLE WITH THE LIST OF URIS THAT ARE MORE RECENT THAN THE LAST RUN***/
     EXECUTE IMMEDIATE
@@ -232,4 +246,3 @@ BEGIN
   /************END SECTION**********************/
 
 END
-
