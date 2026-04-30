@@ -110,6 +110,11 @@ BEGIN
   /****END SECTION****/
 
 
+
+
+
+
+
   /***THIS SECTION CREATES A TEMP TABLE WITH THE LIST OF URIS THAT ARE MORE RECENT THAN THE LAST RUN***/
     EXECUTE IMMEDIATE
     """CREATE OR REPLACE TEMP TABLE tmp_uri_list AS """
@@ -162,7 +167,7 @@ BEGIN
             EXECUTE IMMEDIATE
             """ CREATE OR REPLACE TABLE """ 
             || argTargetDataset || """.""" || argTargetInternalTable || """ AS """
-            || """ SELECT *, '""" || varCurrentRunTimestamp || """' AS source_create_timestamp, 'INSERT' AS source_change_type """ 
+            || """ SELECT *, TIMESTAMP('""" || varCurrentRunTimestamp || """') AS source_create_timestamp, 'INSERT' AS source_change_type """ 
             || """ FROM """ 
             || argTargetDataset || """.""" || varTargetExternalTable || """;"""
             ;
@@ -218,7 +223,7 @@ BEGIN
             /*then inserts*/
             EXECUTE IMMEDIATE
             """ INSERT INTO """ || argTargetDataset || """.""" || argTargetInternalTable
-            || """ SELECT *, '""" || varCurrentRunTimestamp || """' AS source_create_timestamp, 'INSERT' AS source_change_type """ 
+            || """ SELECT *, TIMESTAMP('""" || varCurrentRunTimestamp || """') AS source_create_timestamp, 'INSERT' AS source_change_type """ 
             || """ FROM """ 
             || argTargetDataset || """.""" || varTargetExternalTable || """;"""
             ;
