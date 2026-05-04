@@ -78,6 +78,17 @@ COLUMNpicker
     varTargetTable STRING
     varSelectColumnArray ARRAY<STRUCT<source_column_name STRING, target_column_name STRING>>): Must be sent as a key/value pair with the source column name and a target column name (eg [('source_col1', 'target_col1'), ('source_col2', 'target_col2'), ('source_col3', 'target_col3')]
 
+DATATYPEcaster
+  - creates a list of columns where you want to recast the datatype--this assumes that the casting is possible and runs a safe_cast
+  - all columns not recast will be moved over as-is
+  Arguments:
+    argSourceDataset STRING, --the dataset of the source table
+    argSourceTable STRING, --the name of the source table
+    argTargetDataset STRING, --the dataset where you want to create/load the target table
+    argTargetTable STRING, --the name of the target table (will create it if it doesn't exist)
+    argSelectColumnArray ARRAY<STRUCT<source_column_name STRING, source_datatype STRING>>) --the array of columns that you want to recast, and the new datatype
+
+
 KEYmaster
   - Creates a target table along with a new key field based on a specified list of fields
   - User passes a set of fields--the values will be converted to string and concatenated together, then a farm fingerprint hash will be applied
