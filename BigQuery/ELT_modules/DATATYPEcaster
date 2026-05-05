@@ -18,7 +18,7 @@ BEGIN
 
 
     DECLARE varSelectColumnString STRING;
-    DECLARE argTargetTableCheck STRING;
+    DECLARE varTargetTableCheck STRING;
     DECLARE varDmlPrefix STRING;
     DECLARE varSessionName STRING;
     DECLARE varCastColumnList STRING;
@@ -118,7 +118,7 @@ BEGIN
     || ';                                                                                           '
     ;
     /*Sets the variable to the row in the temp table*/
-    SET argTargetTableCheck = (SELECT variable_value FROM tmp_table_checker_value WHERE session_name = varSessionName);
+    SET varTargetTableCheck = (SELECT variable_value FROM tmp_table_checker_value WHERE session_name = varSessionName);
 
     /*******************************************************************************************/
     /******************************END Generate Target Table Name*******************************/
@@ -133,7 +133,7 @@ BEGIN
     /*Checks intended table name against the metadata table name to see
     if the table already exists--generates either a CREATE TABLE statement
     or an INSERT INTO statement depending on whether the target already eixsts*/ 
-    IF argTargetTableCheck = argTargetTable THEN SET varDmlPrefix = 'INSERT INTO ' || argTargetDataset || '.' || argTargetTable || ' ';
+    IF varTargetTableCheck = argTargetTable THEN SET varDmlPrefix = 'INSERT INTO ' || argTargetDataset || '.' || argTargetTable || ' ';
         ELSE SET varDmlPrefix = 'CREATE OR REPLACE TABLE ' || argTargetDataset || '.' || argTargetTable || ' AS ';
     END IF;
 
