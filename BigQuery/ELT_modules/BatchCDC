@@ -1,4 +1,15 @@
-CREATE OR REPLACE PROCEDURE dpa.sp_BatchCDC(argSourceTableArray ARRAY<STRUCT<col_source_dataset STRING, col_source_table_name STRING, col_source_timestamp_field_name STRING, col_target_table_name STRING>>, argMetaTableStruct STRUCT<meta_dataset STRING, meta_table_name STRING, meta_key STRING, meta_timestamp STRING>, argTargetDataset STRING)
+CREATE OR REPLACE PROCEDURE dpa.sp_BatchCDC(
+        argSourceTableArray ARRAY<STRUCT<
+                                        col_source_dataset STRING, --the dataset of the source table
+                                        col_source_table_name STRING, --the name of the source table
+                                        col_source_timestamp_field_name STRING, --the name of the timestamp field of the source table
+                                        col_target_table_name STRING>>, --the name of the target table to load
+        argMetaTableStruct STRUCT<
+                                meta_dataset STRING, --the dataset where the metadata table is located
+                                meta_table_name STRING, --the name of the metadata table
+                                meta_key STRING, -- the name of the key field of the metadata table
+                                meta_timestamp STRING>, --the name of the timestamp field of the metadata table
+        argTargetDataset STRING) -- the dataset where the target tables are located
 BEGIN
 
 --/*this is the list of variables that should go into the stored proc's parameters--used for testing*/
@@ -46,6 +57,13 @@ BEGIN
             (WITH unstruct as (select argMetaTableStruct as a) SELECT a.meta_key FROM unstruct);
     SET varMetaTimestampCol = 
             (WITH unstruct as (select argMetaTableStruct as a) SELECT a.meta_timestamp FROM unstruct);
+
+
+    /* creates the metadata table if it doesn't already exist*/
+    EXECUTE IMMEDIATE
+    """    CREATE TABLE IF NOT EXISTS """ || varMetaDataset || """.""" || varMetaTable || """ AS """
+    || """    SELECT 1 AS """ || varMetaKey || """, TIMESTAMP('2000-01-01 00:00:00') AS """ || varMetaTimestampCol || """;"""
+    ;
 
 
     /*Puts the last run timestamp from the meta table into a temp table--this is needed because
