@@ -168,6 +168,24 @@ INTERNALizer_incremental_filename
         argSkipRowNumber INT64, -- the number of rows to skip for headers
         argDelimiter STRING -- the delimiter use '' if this isn't applicable
 
+INTERNALizer_incremental_filename_recast
+- Used for incremental loading when there is no viable operation flag and source timestamp in the data, it uses the timestamp for when the file was created in the bucket to determine the incremental loadments here
+- Similar to internalizer_incremental_filename, but this one also specifies a list of columns were you want to recast the datatype, used in cases where BQ's auto detection of datatypes makes a mistake  
+- This has to have a connection established first
+    Arguments:
+        argFormat STRING, --the file format of the files being uploaded (eg csv, josn, etc)
+        argSourceUriBase STRING, --the uri of the  directory for the files, with a slash and wildcard
+        argTargetDataset STRING, --the dataset that this will be run in
+        argConnection STRING, --the connection created, this must be created beforehand
+        argTargetInternalTable STRING,  -- the name of the internal table to use
+        argPrimaryKeyArray ARRAY<STRING>, -- the primary key field(s) in array format ['one', 'two']
+        argSkipRowNumber INT64, -- the number of rows to skip for headers
+        argDelimiter STRING, -- the delimiter use '' if this isn't applicable
+        argSelectColumnArray ARRAY<STRUCT<source_column_name STRING, source_datatype STRING>> -- the columes where you want to recast the datatype
+
+
+
+
 unJSONer
   - flattens any json columns in a table, placing each into their own tables with schema
   - creates tables if they don't exist, inserts into tables if they do--this might need to be changed so that it always drops and recreates the table
