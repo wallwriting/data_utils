@@ -1,0 +1,160 @@
+/*creates a list of columns where you want to recast the datatype--this assumes that the casting is possible and runs a safe_cast*/
+CREATE OR REPLACE PROCEDURE dpa.sp_datatype_caster(
+  argSourceDataset STRING, --the dataset of the source table
+  argSourceTable STRING, --the name of the source table
+  argTargetDataset STRING, --the dataset where you want to create/load the target table
+  argTargetTable STRING, --the name of the target table (will create it if it doesn't exist)
+  argSelectColumnArray ARRAY<STRUCT<source_column_name STRING, source_datatype STRING>>) --the array of columns that you want to recast, and the new datatype, all other columns not listed here will be moved over as-is
+BEGIN
+
+
+BEGIN
+/*for testing*/
+DECLARE argSelectColumnArray ARRAY<STRUCT<source_column_name STRING, source_datatype STRING>>;
+DECLARE argSourceDataset STRING;
+DECLARE argSourceTable STRING;
+DECLARE argTargetDataset STRING;
+DECLARE argTargetTable STRING;
+/*for testing*/
+
+
+    DECLARE varSelectColumnString STRING;
+    DECLARE argTargetTableCheck STRING;
+    DECLARE varDmlPrefix STRING;
+    DECLARE varSessionName STRING;
+    DECLARE varCastColumnList STRING;
+
+
+/*for testing*/
+SET argSelectColumnArray = [
+  STRUCT('zip_code', 'STRING'), 
+  STRUCT('county_fips', 'STRING')
+  ]
+;
+SET argSourceDataset = 'source_sample';
+SET argSourceTable = 'stg2_keymaster_membership';
+SET argTargetDataset = 'source_sample';
+SET argTargetTable = 'stg3_datatype_membership';
+/*for testing*/
+
+
+    /*sets the session name which will be used later to select the proper record. This is needed because BQ doesn't actually replace a temp table if it's created twice in the same multi statement transaction block, which can cause errors if multiple upsert commands are used in one block*/
+    SET varSessionName = argSourceDataset || argSourceTable || argTargetDataset || argTargetTable;    
+
+
+    /*creates a temp table with the flattened array and source/target column names from the STRUCT fields*/
+    CREATE OR REPLACE TEMP TABLE tmp_columnpicker_list AS
+    WITH flattened_struct AS (select argSelectColumnArray)
+    select varSessionName as session_name, a FROM flattened_struct, UNNEST(argSelectColumnArray) a
+    ;
+
+    EXECUTE IMMEDIATE 
+    'CREATE OR REPLACE TEMP TABLE tmp_column_list_table AS '
+    || ' SELECT '
+    || """ '""" || varSessionName || """' AS session_name, """
+    /*filters out the opening and closing brackets as well as the double quotes from the 
+    array string in order to use it as an explicity column list in the query later on*/
+    || '    REPLACE '
+    || '        ( '
+    || '            REPLACE '
+    || '                ( '
+    || '                    REPLACE '
+    || '                        ( '
+                                      /*creates an array of the column names and it also
+                                      adds ticks in cases where the column name is a reserve word*/
+    || """                            (format('%T', array_agg('`' || a.source_column_name || '`'))) """
+    || """                            , '[', '' """
+    || '                        ) '
+    || """                    , ']', '' """
+    || '                ) '
+    || """            , '''"''', '' """
+    || '        ) AS col_list,'
+
+    /*filters out the opening and closing brackets as well as the double quotes from the 
+    array string in order to use it as an explicity column list in the query later on*/
+    || '    REPLACE '
+    || '        ( '
+    || '            REPLACE '
+    || '                ( '
+    || '                    REPLACE '
+    || '                        ( '
+                                      /*creates an array of the column names and datatype in an explicit cast*/
+    || """                            (format('%T', array_agg('SAFE_CAST(`' || a.source_column_name || '` AS ' || a.source_datatype || ') AS `' || a.source_column_name || '`'))) """
+    || """                            , '[', '' """
+    || '                        ) '
+    || """                    , ']', '' """
+    || '                ) '
+    || """            , '''"''', '' """
+    || '        ) AS cast_list'
+    || ' FROM '
+    || """ (SELECT * FROM tmp_columnpicker_list WHERE session_name = '""" || varSessionName || """' ORDER BY a.source_column_name)"""
+    || ';'
+    ;
+
+    SET varSelectColumnString = (SELECT col_list FROM tmp_column_list_table WHERE session_name = varSessionName);
+    SET varCastColumnList = (SELECT cast_list FROM tmp_column_list_table WHERE session_name = varSessionName);
+
+
+-- select * FROM tmp_column_list_table;
+
+
+
+
+    /*******************************************************************************************/
+    /****************************START Generate Target Table Name*******************************/
+    /*******************************************************************************************/    
+
+    /*checks information schema to see if the table exists*/
+    -- CREATE OR REPLACE TEMP TABLE tmp_table_checker_value (session_name STRING, variable_value   STRING);
+
+    EXECUTE IMMEDIATE 
+    ' CREATE OR REPLACE TEMP TABLE tmp_table_checker_value AS '
+    || 'SELECT                                                                                      '
+    || """ '""" || varSessionName || """' AS session_name, """
+    || '    table_id AS variable_value                                                                               '
+    || 'FROM                                                                                        '
+    ||    argTargetDataset || '.__TABLES__                                                                  '
+    || 'WHERE                                                                                       '
+    || """    table_id = '""" || argTargetTable || """'   """
+    || ';                                                                                           '
+    ;
+    /*Sets the variable to the row in the temp table*/
+    SET argTargetTableCheck = (SELECT variable_value FROM tmp_table_checker_value WHERE session_name = varSessionName);
+
+    /*******************************************************************************************/
+    /******************************END Generate Target Table Name*******************************/
+    /*******************************************************************************************/   
+
+
+
+
+    /*******************************************************************************************/
+    /******************************START populate target table**********************************/
+    /*******************************************************************************************/   
+    /*Checks intended table name against the metadata table name to see
+    if the table already exists--generates either a CREATE TABLE statement
+    or an INSERT INTO statement depending on whether the target already eixsts*/ 
+    IF argTargetTableCheck = argTargetTable THEN SET varDmlPrefix = 'INSERT INTO ' || argTargetDataset || '.' || argTargetTable || ' ';
+        ELSE SET varDmlPrefix = 'CREATE OR REPLACE TABLE ' || argTargetDataset || '.' || argTargetTable || ' AS ';
+    END IF;
+
+    -- This is the columnpicker version of the syntax. Perhaps will be used in the future
+    -- EXECUTE IMMEDIATE 
+    -- varDmlPrefix
+    -- /*uses a select distinct--according to google, bq should have simialr performance between a select distinct and a select with group by
+    -- but this should be evaluated and changes might need to be made if this proves untrue in the future*/
+    -- || ' SELECT DISTINCT ' || varSelectColumnString || ' FROM ' || argSourceDataset || '.' || argSourceTable || ';'
+    -- ;
+
+    EXECUTE IMMEDIATE 
+    varDmlPrefix
+    /*uses a select distinct--according to google, bq should have simialr performance between a select distinct and a select with group by
+    but this should be evaluated and changes might need to be made if this proves untrue in the future*/
+    || ' SELECT ' || varCastColumnList || ', ' || '* EXCEPT (' || varSelectColumnString || ') FROM ' || argSourceDataset || '.' || argSourceTable || ';'
+    ;
+
+
+    /*******************************************************************************************/
+    /********************************END populate target table**********************************/
+    /*******************************************************************************************/  
+END;
