@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE test.sp_tabledropper(varTargetDataset STRING)
+CREATE OR REPLACE PROCEDURE dpa.sp_tabledropper(varTargetDataset STRING)
 BEGIN
     DECLARE curCounter INT64;
     DECLARE varRange INT64;
