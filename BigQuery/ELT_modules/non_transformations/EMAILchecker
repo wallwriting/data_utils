@@ -1,9 +1,11 @@
-CREATE FUNCTION dpa.email_checker(argEmail STRING) AS
+/*Checks if an email is valid. If the field is null, returns null.
+If it is valid, it returns the email address. If it is invalid, it returns "invalid email"*/
+CREATE OR REPLACE FUNCTION dpa.email_checker(argEmail STRING) AS
 ((
   SELECT
     CASE 
-      WHEN REGEXP_CONTAINS(argEmail, r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$") 
-      THEN 'y' 
-      ELSE 'n' 
+      WHEN argEmail IS NULL THEN NULL
+      WHEN REGEXP_CONTAINS(argEmail, r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$") THEN argEmail
+      ELSE 'invalid email' 
     END AS valid_email_check
 ));
