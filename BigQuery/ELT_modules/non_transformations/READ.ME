@@ -52,3 +52,9 @@ EMAILchecker
   uses reg expressions to check if an email is valid. Returns 'y' or 'n'.
   Arguments
     argEmail STRING -- the email address to check
+
+POSTALCODEchecker
+  uses reg expressions to validate a postal code. Must pass both the code and the country to check in either the standardized name or the 2 character iso code. Returns boolean true or false
+  Arguments
+    argCountry -- uses the country name or the 2-character country code
+    argPostalCode -- the postal code you want to check
