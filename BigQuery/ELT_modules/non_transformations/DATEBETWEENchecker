@@ -1,0 +1,10 @@
+--checks if a date is between two other dates
+CREATE OR REPLACE FUNCTION dpa.date_between_checker(
+  argDateToCheck DATE, --the date to check
+  argLowDate DATE, --the start date of the range
+  argHighDate DATE --the end date of the range
+) AS
+((
+SELECT CASE WHEN argDateToCheck BETWEEN argLowDate AND argHighDate THEN TRUE ELSE FALSE END
+))
+;
