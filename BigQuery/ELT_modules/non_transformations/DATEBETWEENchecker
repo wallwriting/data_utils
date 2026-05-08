@@ -7,6 +7,7 @@ CREATE OR REPLACE FUNCTION dpa.date_between_checker(
 ((
 SELECT 
 CASE 
+    WHEN argDateToCheck IS NULL THEN NULL
     WHEN argDateToCheck BETWEEN argLowDate AND argHighDate THEN NULL 
     WHEN argDateToCheck > argHighDate THEN argDateToCheck || ' is greater than high date ' || argHighDate
     WHEN argDateToCheck < argLowDate THEN argDateToCheck || ' is less than low date ' || argLowDate
