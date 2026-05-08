@@ -8,6 +8,7 @@ WITH return_table as
     (
     SELECT
     CASE
+        WHEN argCountry IS NULL THEN NULL
         WHEN argCountry IN('Åland Islands', 'AX') THEN REGEXP_CONTAINS(argPostalCode, r"22\d{3}")
         WHEN argCountry IN('French Guiana', 'GF') THEN REGEXP_CONTAINS(argPostalCode, r"973\d{2}")
         WHEN argCountry IN('Guadeloupe', 'GP') THEN REGEXP_CONTAINS(argPostalCode, r"97[0-1]\d{2}")
@@ -261,7 +262,7 @@ WITH return_table as
     )
     SELECT
         CASE WHEN return_value_bool = True THEN NULL
-            ELSE argPostalCode || ' is an invalid postal code'
+            ELSE argPostalCode || ' is an invalid postal code for country ' || argCountry
         END AS return_value_string
     FROM 
     return_table
