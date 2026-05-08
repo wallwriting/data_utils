@@ -5,6 +5,11 @@ CREATE OR REPLACE FUNCTION dpa.date_between_checker(
   argHighDate DATE --the end date of the range
 ) AS
 ((
-SELECT CASE WHEN argDateToCheck BETWEEN argLowDate AND argHighDate THEN TRUE ELSE FALSE END
+SELECT 
+CASE 
+    WHEN argDateToCheck BETWEEN argLowDate AND argHighDate THEN NULL 
+    WHEN argDateToCheck > argHighDate THEN argDateToCheck || ' is greater than high date ' || argHighDate
+    WHEN argDateToCheck < argLowDate THEN argDateToCheck || ' is less than low date ' || argLowDate
+END
 ))
 ;
