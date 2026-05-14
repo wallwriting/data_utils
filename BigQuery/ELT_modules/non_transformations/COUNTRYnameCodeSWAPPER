@@ -1,8 +1,7 @@
-CREATE OR REPLACE FUNCTION dpa.country_name_code_swapper(argCountry STRING) AS 
-((
+CREATE OR REPLACE FUNCTION dpa.country_name_code_swapper(argCountry STRING) AS (
+(
 SELECT
     CASE
-        WHEN argCountry IS NULL THEN NULL
         WHEN UPPER(argCountry) = 'AFGHANISTAN' THEN 'AF'
         WHEN UPPER(argCountry) = 'ÅLAND ISLANDS' THEN 'AX'
         WHEN UPPER(argCountry) = 'ALBANIA' THEN 'AL'
@@ -252,6 +251,7 @@ SELECT
         WHEN UPPER(argCountry) = 'YEMEN' THEN 'YE'
         WHEN UPPER(argCountry) = 'ZAMBIA' THEN 'ZM'
         WHEN UPPER(argCountry) = 'ZIMBABWE' THEN 'ZW'
-        ELSE argCountry || ' is an invalid country name' 
+        ELSE argCountry
     END
-));
+)
+);
