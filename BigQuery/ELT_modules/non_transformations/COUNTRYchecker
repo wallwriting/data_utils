@@ -255,6 +255,6 @@ SELECT
               'ZM',
               'ZW'
             ) THEN NULL
-          ELSE argCountry || ' is an invalid currency code' 
+          ELSE argCountry || ' is an invalid country code' 
     END
 ));
