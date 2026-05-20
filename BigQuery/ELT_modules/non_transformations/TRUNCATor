@@ -15,7 +15,7 @@ BEGIN
 
     /*creates a temp table with the list of valid table names*/
     EXECUTE IMMEDIATE
-    """CREATE TEMP TABLE tmp_table_list AS """ 
+    """CREATE OR REPLACE TEMP TABLE tmp_table_list AS """ 
     || """SELECT row_number() OVER () as row_id, table_name FROM """ || argDataset || """.INFORMATION_SCHEMA.TABLES WHERE table_name IN(""" || varTableString || """); """
     ;
 
