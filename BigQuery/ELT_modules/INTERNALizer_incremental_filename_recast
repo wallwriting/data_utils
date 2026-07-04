@@ -221,8 +221,10 @@ BEGIN
         SET varCurrentRunTimestamp = current_timestamp();
 
         /*creates the delimiter syntax if it's applicable*/
-        SET varDelimiterSyntax = CONCAT(""" field_delimiter = '""" || argDelimiter || """', """);
-
+        IF LOWER(argFormat) = 'csv' AND argDelimiter != '' THEN
+            SET varDelimiterSyntax = CONCAT(""" field_delimiter = '""" || argDelimiter || """', """);
+          ELSE  SET varDelimiterSyntax = '';
+        END IF;
 
         /*creates the external table*/
         EXECUTE IMMEDIATE
