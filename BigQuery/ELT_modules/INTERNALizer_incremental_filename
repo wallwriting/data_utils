@@ -141,7 +141,7 @@ BEGIN
         SET varCurrentRunTimestamp = current_timestamp();
 
         /*creates the delimiter syntax if it's applicable*/
-        IF LOWER(argFormat) = 'csv' THEN
+        IF LOWER(argFormat) = 'csv' AND argDelimiter != '' THEN
             SET varDelimiterSyntax = CONCAT(""" field_delimiter = '""" || argDelimiter || """', """);
           ELSE  SET varDelimiterSyntax = '';
         END IF;
