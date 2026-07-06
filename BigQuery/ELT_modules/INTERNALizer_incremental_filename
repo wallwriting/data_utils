@@ -35,6 +35,7 @@ BEGIN
   DECLARE varStringLength INT64;
   DECLARE varDelimiterSyntax STRING;
   DECLARE varTargetExternalTable STRING; 
+  DECLARE varSkipRowSyntax STRING;
 
   /*for testing purposes, comment this out*/
   -- DECLARE argFormat STRING;
@@ -146,12 +147,19 @@ BEGIN
           ELSE  SET varDelimiterSyntax = '';
         END IF;
 
+        /*creates the skip row syntax if it's applicable*/
+        IF LOWER(argFormat) = 'csv' AND argSkipRowNumber > 0 THEN
+            SET varSkipRowSyntax = """ skip_leading_rows = """ || argSkipRowNumber || """, """;
+          ELSE SET varSkipRowSyntax = '';
+        END IF;
+
         /*creates the external table*/
         EXECUTE IMMEDIATE
         """ CREATE OR REPLACE EXTERNAL TABLE """ || argTargetDataset || """.""" || varTargetExternalTable
         || """  OPTIONS ("""
         || """    format = """ || argFormat || ""","""
-        || """    skip_leading_rows = """ || argSkipRowNumber || """, """
+        || varSkipRowSyntax
+        -- || """    skip_leading_rows = """ || argSkipRowNumber || """, """
         || varDelimiterSyntax
         || """    uris = """ || varUriList
         || """    ); """
