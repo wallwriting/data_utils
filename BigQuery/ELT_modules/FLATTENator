@@ -1,5 +1,5 @@
 
-CREATE PROCEDURE test.sp_FLATTENator(varSrcPrj STRING, varSrcDs STRING, varSrcTbl STRING, varTgtDs STRING, varTblJoinKey STRING)
+CREATE OR REPLACE PROCEDURE dpa.sp_flattenator(varSrcDs STRING, varSrcTbl STRING, varTgtDs STRING, varTblJoinKey STRING)
 
 BEGIN
 
@@ -67,7 +67,7 @@ BEGIN
     || """          , '''"''', ''                                                                     """
     || '        ) AS column_array                                                                                       '
     || 'FROM                                                                                            '
-    ||     varSrcPrj || '.' || varSrcDs || '.INFORMATION_SCHEMA.COLUMNS                                 ' 
+    ||     varSrcDs || '.INFORMATION_SCHEMA.COLUMNS                                 ' 
     || 'WHERE                                                                                           '
     ||     'table_name = ' || """'""" || varSrcTbl || """'                                            """
 --    ||     'AND LEFT(data_type, 5) != ' || """'""" || varDatatype5 || """'                            """
@@ -152,10 +152,11 @@ select varBaseColList;
                               ||     varTblJoinKey || ' AS ' || varTblJoinKey || '_key,                                  '
                   --            ||     varCurMatchCol || '.*                               '
                   --            || ' FROM ' 
-                  --            ||     varSrcPrj || '.' || varSrcDs || '.' || varSrcTbl
-                              || '   unn.*                                            '
+                  --            ||     varSrcDs || '.' || varSrcTbl
+                              -- || '   unn.*                                            '
+                              || varCurMatchCol
                               || ' FROM ' 
-                              ||     varSrcPrj || '.' || varSrcDs || '.' || varSrcTbl
+                              ||     varSrcDs || '.' || varSrcTbl
                               || '   , UNNEST(' || varCurMatchCol || ') unn           '
                               || ';                                                       '
                               ;
@@ -169,7 +170,7 @@ select varBaseColList;
                               ||     varTblJoinKey || ',                                  '
                               ||     varCurMatchCol || '.*                               '
                               || ' FROM ' 
-                              ||     varSrcPrj || '.' || varSrcDs || '.' || varSrcTbl
+                              ||     varSrcDs || '.' || varSrcTbl
                               || ';                                                       '
                               ;
                           END IF;
@@ -180,7 +181,7 @@ select varBaseColList;
                     || 'SELECT                                                  '
                     ||     varBaseColList
                     || ' FROM                                                   ' 
-                    ||     varSrcPrj || '.' || varSrcDs || '.' || varSrcTbl
+                    ||     varSrcDs || '.' || varSrcTbl
                     || ';                                                       '
                     ;
                 END IF;
